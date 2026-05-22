@@ -248,12 +248,24 @@ final class AppState: ObservableObject {
     var moreTitle: String { language == .korean ? "더보기" : "More" }
     var allowBatteryTitle: String { language == .korean ? "배터리에서도 사용" : "Allow on Battery" }
     var chargingOnlyTitle: String { language == .korean ? "충전 중일 때만 Mac 켜두기" : "Only keep Mac on while charging" }
+    var chargingOnlyStateTitle: String {
+        if !allowOnBattery {
+            return language == .korean ? "충전 중일 때만 Mac 켜두는 중" : "Only keeping Mac on while charging"
+        }
+
+        return language == .korean ? "배터리에서도 Mac 켜두기" : "Also keep Mac on battery"
+    }
     var chargingOnlyDetail: String {
         language == .korean
             ? "켜면 전원 연결 중에만 동작합니다. 배터리만 사용할 때는 자동으로 기다립니다."
             : "When on, LidStay runs only while power is connected and waits on battery."
     }
     var launchAtLoginTitle: String { language == .korean ? "로그인 시 자동 실행" : "Open at Login" }
+    var launchAtLoginStateTitle: String {
+        launchAtLoginEnabled
+            ? (language == .korean ? "로그인 시 자동 실행 중" : "Opening at login")
+            : launchAtLoginTitle
+    }
     var languageTitle: String { language == .korean ? "언어" : "Language" }
     var languageSwitchTitle: String { language == .korean ? "English" : "한국어" }
     var aboutTitle: String { language == .korean ? "LidStay 정보" : "About LidStay" }
