@@ -19,11 +19,9 @@ final class AppState: ObservableObject {
             }
             defaults.set(isSleepPreventionEnabled, forKey: DefaultsKey.isSleepPreventionEnabled)
             if !isSleepPreventionEnabled {
-                animateMenuBarIcon(opening: false, infinite: selectedDurationID == "infinite")
                 clearSession()
                 refreshAssertion()
             } else {
-                animateMenuBarIcon(opening: true, infinite: selectedDurationID == "infinite")
                 startSelectedSession()
             }
         }
@@ -422,6 +420,15 @@ final class AppState: ObservableObject {
         powerSourceMonitor.stop()
     }
 
+    func setSleepPreventionEnabled(_ enabled: Bool) {
+        guard enabled != isSleepPreventionEnabled else {
+            return
+        }
+
+        animateMenuBarIcon(opening: enabled, infinite: selectedDurationID == "infinite")
+        isSleepPreventionEnabled = enabled
+    }
+
     func startSession(duration: TimeInterval?) {
         if let duration {
             sessionEndDate = Date().addingTimeInterval(duration)
@@ -430,6 +437,7 @@ final class AppState: ObservableObject {
         }
 
         if !isSleepPreventionEnabled {
+            animateMenuBarIcon(opening: true, infinite: selectedDurationID == "infinite")
             isSleepPreventionEnabled = true
         } else {
             refreshAssertion()
@@ -445,6 +453,9 @@ final class AppState: ObservableObject {
     }
 
     func stopSession() {
+        if isSleepPreventionEnabled {
+            animateMenuBarIcon(opening: false, infinite: selectedDurationID == "infinite")
+        }
         clearSession()
         isSleepPreventionEnabled = false
         assertionController.release()
@@ -632,6 +643,7 @@ final class AppState: ObservableObject {
         }
 
         clearSession()
+        animateMenuBarIcon(opening: false, infinite: selectedDurationID == "infinite")
         isSleepPreventionEnabled = false
     }
 
@@ -645,15 +657,17 @@ final class AppState: ObservableObject {
         let frameIndexes = opening ? Array(0...4) : Array((0...4).reversed())
         let prefix = infinite ? "MenuBarIconInfiniteFrame" : "MenuBarIconFrame"
         let frames = frameIndexes.map { "\(prefix)\($0)" }
+        menuBarIconAnimationName = frames.first
 
         iconAnimationTask = Task { @MainActor [weak self] in
-            for frame in frames {
+            for frame in frames.dropFirst() {
                 guard !Task.isCancelled else {
                     return
                 }
-                self?.menuBarIconAnimationName = frame
                 try? await Task.sleep(nanoseconds: 42_000_000)
+                self?.menuBarIconAnimationName = frame
             }
+            try? await Task.sleep(nanoseconds: 42_000_000)
             self?.menuBarIconAnimationName = nil
         }
     }
