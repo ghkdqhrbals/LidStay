@@ -208,9 +208,10 @@ func drawAnimatedMenuBarIcon(size: CGFloat, openness: CGFloat, infinite: Bool = 
     }
 
     if infinite {
+        let markAlpha = pow(t, 1.6)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 16.8 * scale, weight: .heavy),
-            .foregroundColor: NSColor.labelColor,
+            .foregroundColor: NSColor.labelColor.withAlphaComponent(markAlpha),
         ]
         let mark = NSAttributedString(string: "∞", attributes: attributes)
         let markSize = mark.size()
