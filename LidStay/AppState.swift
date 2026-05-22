@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import ServiceManagement
 
 @MainActor
 final class AppState: ObservableObject {
@@ -43,6 +42,7 @@ final class AppState: ObservableObject {
             guard launchAtLoginEnabled != oldValue else {
                 return
             }
+            defaults.set(launchAtLoginEnabled, forKey: DefaultsKey.launchAtLoginEnabled)
             setLaunchAtLogin(launchAtLoginEnabled)
         }
     }
@@ -89,7 +89,7 @@ final class AppState: ObservableObject {
         self.isSleepPreventionEnabled = defaults.bool(forKey: DefaultsKey.isSleepPreventionEnabled)
         self.allowOnBattery = defaults.bool(forKey: DefaultsKey.allowOnBattery)
         self.language = AppLanguage(rawValue: defaults.string(forKey: DefaultsKey.language) ?? "") ?? .korean
-        self.launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+        self.launchAtLoginEnabled = defaults.bool(forKey: DefaultsKey.launchAtLoginEnabled)
         self.durationMinutesText = defaults.string(forKey: DefaultsKey.durationMinutesText) ?? "60"
         self.selectedDurationID = defaults.string(forKey: DefaultsKey.selectedDurationID) ?? "infinite"
         self.powerSourceState = powerSourceMonitor.currentSnapshot.state
@@ -104,6 +104,9 @@ final class AppState: ObservableObject {
         }
         powerSourceMonitor.start()
         startSessionTimer()
+        if launchAtLoginEnabled {
+            setLaunchAtLogin(true)
+        }
         refreshAssertion()
     }
 
@@ -391,7 +394,7 @@ final class AppState: ObservableObject {
     }
 
     func refreshLaunchAtLoginStatus() {
-        launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+        launchAtLoginEnabled = defaults.bool(forKey: DefaultsKey.launchAtLoginEnabled)
     }
 
     func startSelectedSession() {
@@ -491,14 +494,15 @@ final class AppState: ObservableObject {
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
+        if enabled {
+            do {
+                try LoginItemController.install()
+            } catch {
+                defaults.set(false, forKey: DefaultsKey.launchAtLoginEnabled)
+                launchAtLoginEnabled = false
             }
-        } catch {
-            launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+        } else {
+            LoginItemController.uninstall()
         }
     }
 }
@@ -509,6 +513,52 @@ private enum DefaultsKey {
     static let durationMinutesText = "durationMinutesText"
     static let selectedDurationID = "selectedDurationID"
     static let language = "language"
+    static let launchAtLoginEnabled = "launchAtLoginEnabled"
+}
+
+private enum LoginItemController {
+    static let label = "com.local.LidStay.loginitem"
+
+    static var plistURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents", isDirectory: true)
+            .appendingPathComponent("\(label).plist")
+    }
+
+    static func install() throws {
+        guard let executablePath = Bundle.main.executableURL?.path else {
+            throw NSError(domain: "LidStayLoginItem", code: 1)
+        }
+
+        let launchAgentsURL = plistURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: launchAgentsURL, withIntermediateDirectories: true)
+
+        let plist: [String: Any] = [
+            "Label": label,
+            "ProgramArguments": [executablePath],
+            "RunAtLoad": true,
+            "LimitLoadToSessionType": "Aqua",
+        ]
+        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        try data.write(to: plistURL, options: .atomic)
+        runLaunchctl(arguments: ["bootout", "gui/\(getuid())", plistURL.path])
+        runLaunchctl(arguments: ["bootstrap", "gui/\(getuid())", plistURL.path])
+    }
+
+    static func uninstall() {
+        runLaunchctl(arguments: ["bootout", "gui/\(getuid())", plistURL.path])
+        try? FileManager.default.removeItem(at: plistURL)
+    }
+
+    private static func runLaunchctl(arguments: [String]) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+    }
 }
 
 struct DurationOption: Identifiable, Equatable {
