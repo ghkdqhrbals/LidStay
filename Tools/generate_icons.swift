@@ -7,6 +7,12 @@ let menuIconDir = root.appendingPathComponent("LidStay/Assets.xcassets/MenuBarIc
 let menuIconOnDir = root.appendingPathComponent("LidStay/Assets.xcassets/MenuBarIconOn.imageset", isDirectory: true)
 let menuIconOffDir = root.appendingPathComponent("LidStay/Assets.xcassets/MenuBarIconOff.imageset", isDirectory: true)
 let menuIconInfiniteDir = root.appendingPathComponent("LidStay/Assets.xcassets/MenuBarIconInfinite.imageset", isDirectory: true)
+let menuIconFrameDirs = (0...4).map { index in
+    root.appendingPathComponent("LidStay/Assets.xcassets/MenuBarIconFrame\(index).imageset", isDirectory: true)
+}
+let menuIconInfiniteFrameDirs = (0...4).map { index in
+    root.appendingPathComponent("LidStay/Assets.xcassets/MenuBarIconInfiniteFrame\(index).imageset", isDirectory: true)
+}
 let statusDotGreenDir = root.appendingPathComponent("LidStay/Assets.xcassets/StatusDotGreen.imageset", isDirectory: true)
 let statusDotOrangeDir = root.appendingPathComponent("LidStay/Assets.xcassets/StatusDotOrange.imageset", isDirectory: true)
 let statusDotGrayDir = root.appendingPathComponent("LidStay/Assets.xcassets/StatusDotGray.imageset", isDirectory: true)
@@ -17,6 +23,9 @@ try FileManager.default.createDirectory(at: menuIconDir, withIntermediateDirecto
 try FileManager.default.createDirectory(at: menuIconOnDir, withIntermediateDirectories: true)
 try FileManager.default.createDirectory(at: menuIconOffDir, withIntermediateDirectories: true)
 try FileManager.default.createDirectory(at: menuIconInfiniteDir, withIntermediateDirectories: true)
+for dir in menuIconFrameDirs + menuIconInfiniteFrameDirs {
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+}
 try FileManager.default.createDirectory(at: statusDotGreenDir, withIntermediateDirectories: true)
 try FileManager.default.createDirectory(at: statusDotOrangeDir, withIntermediateDirectories: true)
 try FileManager.default.createDirectory(at: statusDotGrayDir, withIntermediateDirectories: true)
@@ -27,6 +36,27 @@ func writePNG(_ bitmap: NSBitmapImageRep, to url: URL) throws {
         throw NSError(domain: "IconGeneration", code: 1)
     }
     try data.write(to: url)
+}
+
+func writeImageSetContents(filename: String, to url: URL) throws {
+    let contents: [String: Any] = [
+        "images": [
+            [
+                "filename": filename,
+                "idiom": "universal",
+                "scale": "2x",
+            ],
+        ],
+        "info": [
+            "author": "xcode",
+            "version": 1,
+        ],
+        "properties": [
+            "template-rendering-intent": "template",
+        ],
+    ]
+    let data = try JSONSerialization.data(withJSONObject: contents, options: [.prettyPrinted, .sortedKeys])
+    try data.write(to: url.appendingPathComponent("Contents.json"))
 }
 
 func drawSignatureIcon(size: CGFloat, menuBar: Bool = false) -> NSBitmapImageRep {
@@ -109,7 +139,7 @@ func drawSignatureIcon(size: CGFloat, menuBar: Bool = false) -> NSBitmapImageRep
     return bitmap
 }
 
-func drawMenuBarIcon(size: CGFloat, active: Bool, infinite: Bool = false) -> NSBitmapImageRep {
+func drawAnimatedMenuBarIcon(size: CGFloat, openness: CGFloat, infinite: Bool = false) -> NSBitmapImageRep {
     let pixels = Int(size)
     guard let bitmap = NSBitmapImageRep(
         bitmapDataPlanes: nil,
@@ -137,47 +167,47 @@ func drawMenuBarIcon(size: CGFloat, active: Bool, infinite: Bool = false) -> NSB
     NSColor.labelColor.set()
 
     let scale = size / 44
+    let t = min(1, max(0, openness))
 
-    func drawOpenLids() {
+    func drawLids() {
+        if t <= 0.01 {
+            let closedLid = NSBezierPath()
+            closedLid.move(to: NSPoint(x: 5.2 * scale, y: 22.2 * scale))
+            closedLid.curve(
+                to: NSPoint(x: 38.8 * scale, y: 22.2 * scale),
+                controlPoint1: NSPoint(x: 13.2 * scale, y: 15.0 * scale),
+                controlPoint2: NSPoint(x: 30.8 * scale, y: 15.0 * scale)
+            )
+            closedLid.lineWidth = 3.0 * scale
+            closedLid.lineCapStyle = .round
+            closedLid.stroke()
+            return
+        }
+
         let upperLid = NSBezierPath()
-        upperLid.move(to: NSPoint(x: 4.2 * scale, y: 22.5 * scale))
+        upperLid.move(to: NSPoint(x: 4.2 * scale, y: (22.2 + 0.3 * t) * scale))
         upperLid.curve(
-            to: NSPoint(x: 39.8 * scale, y: 22.5 * scale),
-            controlPoint1: NSPoint(x: 12.4 * scale, y: 31.0 * scale),
-            controlPoint2: NSPoint(x: 31.6 * scale, y: 31.0 * scale)
+            to: NSPoint(x: 39.8 * scale, y: (22.2 + 0.3 * t) * scale),
+            controlPoint1: NSPoint(x: 12.4 * scale, y: (15.0 + 16.0 * t) * scale),
+            controlPoint2: NSPoint(x: 31.6 * scale, y: (15.0 + 16.0 * t) * scale)
         )
         upperLid.lineWidth = 3.0 * scale
         upperLid.lineCapStyle = .round
         upperLid.stroke()
 
         let lowerLid = NSBezierPath()
-        lowerLid.move(to: NSPoint(x: 7.8 * scale, y: 25.0 * scale))
+        lowerLid.move(to: NSPoint(x: 7.8 * scale, y: (22.2 + 2.8 * t) * scale))
         lowerLid.curve(
-            to: NSPoint(x: 36.2 * scale, y: 25.0 * scale),
-            controlPoint1: NSPoint(x: 14.8 * scale, y: 11.8 * scale),
-            controlPoint2: NSPoint(x: 29.2 * scale, y: 11.8 * scale)
+            to: NSPoint(x: 36.2 * scale, y: (22.2 + 2.8 * t) * scale),
+            controlPoint1: NSPoint(x: 14.8 * scale, y: (22.2 - 10.4 * t) * scale),
+            controlPoint2: NSPoint(x: 29.2 * scale, y: (22.2 - 10.4 * t) * scale)
         )
-        lowerLid.lineWidth = 2.2 * scale
+        lowerLid.lineWidth = (1.4 + 0.8 * t) * scale
         lowerLid.lineCapStyle = .round
         lowerLid.stroke()
     }
 
-    func drawClosedLid() {
-        let closedLid = NSBezierPath()
-        closedLid.move(to: NSPoint(x: 5.2 * scale, y: 22.2 * scale))
-        closedLid.curve(
-            to: NSPoint(x: 38.8 * scale, y: 22.2 * scale),
-            controlPoint1: NSPoint(x: 13.2 * scale, y: 15.0 * scale),
-            controlPoint2: NSPoint(x: 30.8 * scale, y: 15.0 * scale)
-        )
-        closedLid.lineWidth = 3.0 * scale
-        closedLid.lineCapStyle = .round
-        closedLid.stroke()
-    }
-
     if infinite {
-        drawOpenLids()
-
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 16.8 * scale, weight: .heavy),
             .foregroundColor: NSColor.labelColor,
@@ -192,14 +222,15 @@ func drawMenuBarIcon(size: CGFloat, active: Bool, infinite: Bool = false) -> NSB
             height: markSize.height
         )
         mark.draw(in: markRect)
-    } else if active {
-        drawOpenLids()
-    } else {
-        drawClosedLid()
     }
+    drawLids()
 
     NSGraphicsContext.restoreGraphicsState()
     return bitmap
+}
+
+func drawMenuBarIcon(size: CGFloat, active: Bool, infinite: Bool = false) -> NSBitmapImageRep {
+    drawAnimatedMenuBarIcon(size: size, openness: active ? 1 : 0, infinite: infinite)
 }
 
 func drawStatusDot(size: CGFloat, color: NSColor) -> NSBitmapImageRep {
@@ -257,6 +288,27 @@ try writePNG(drawSignatureIcon(size: 44, menuBar: true), to: menuIconDir.appendi
 try writePNG(drawMenuBarIcon(size: 52, active: true), to: menuIconOnDir.appendingPathComponent("menubar-icon-on.png"))
 try writePNG(drawMenuBarIcon(size: 52, active: false), to: menuIconOffDir.appendingPathComponent("menubar-icon-off.png"))
 try writePNG(drawMenuBarIcon(size: 52, active: true, infinite: true), to: menuIconInfiniteDir.appendingPathComponent("menubar-icon-infinite.png"))
+try writeImageSetContents(filename: "menubar-icon.png", to: menuIconDir)
+try writeImageSetContents(filename: "menubar-icon-on.png", to: menuIconOnDir)
+try writeImageSetContents(filename: "menubar-icon-off.png", to: menuIconOffDir)
+try writeImageSetContents(filename: "menubar-icon-infinite.png", to: menuIconInfiniteDir)
+
+for index in 0...4 {
+    let openness = CGFloat(index) / 4
+    let frameFilename = "menubar-icon-frame-\(index).png"
+    try writePNG(
+        drawAnimatedMenuBarIcon(size: 52, openness: openness),
+        to: menuIconFrameDirs[index].appendingPathComponent(frameFilename)
+    )
+    try writeImageSetContents(filename: frameFilename, to: menuIconFrameDirs[index])
+
+    let infiniteFrameFilename = "menubar-icon-infinite-frame-\(index).png"
+    try writePNG(
+        drawAnimatedMenuBarIcon(size: 52, openness: openness, infinite: true),
+        to: menuIconInfiniteFrameDirs[index].appendingPathComponent(infiniteFrameFilename)
+    )
+    try writeImageSetContents(filename: infiniteFrameFilename, to: menuIconInfiniteFrameDirs[index])
+}
 
 try writePNG(drawStatusDot(size: 24, color: NSColor(calibratedRed: 0.20, green: 0.86, blue: 0.32, alpha: 1)), to: statusDotGreenDir.appendingPathComponent("status-dot-green.png"))
 try writePNG(drawStatusDot(size: 24, color: NSColor(calibratedRed: 1.00, green: 0.58, blue: 0.18, alpha: 1)), to: statusDotOrangeDir.appendingPathComponent("status-dot-orange.png"))
