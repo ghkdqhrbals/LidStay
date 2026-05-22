@@ -259,7 +259,7 @@ final class AppState: ObservableObject {
 
     var timeLabel: String { language == .korean ? "시간 선택" : "Choose time" }
     var timeMenuTitle: String {
-        language == .korean ? "시간: \(selectedDurationTitle)" : "Time: \(selectedDurationTitle)"
+        language == .korean ? "켜두는 시간: \(selectedDurationTitle)" : "Duration: \(selectedDurationTitle)"
     }
     var selectedDurationTitle: String {
         if selectedDurationID == "custom", let minutes = parsedDurationMinutes {
@@ -307,34 +307,34 @@ final class AppState: ObservableObject {
     var lowBatteryPromptTitle: String { language == .korean ? "배터리 자동 중지" : "Battery Pause" }
     var lowBatteryPromptMessage: String { language == .korean ? "몇 퍼센트 이하에서 잠깐 중지할지 입력하세요." : "Enter the battery percentage where LidStay should pause." }
     var percentPlaceholder: String { language == .korean ? "퍼센트" : "Percent" }
-    var allowBatteryTitle: String { language == .korean ? "배터리 기준으로도 켜두기" : "Keep on by battery level" }
-    var chargingOnlyTitle: String { language == .korean ? "전원 연결 중 계속 켜두기" : "Keep on while power adapter is connected" }
+    var allowBatteryTitle: String { language == .korean ? "배터리 조건 허용" : "Allow battery condition" }
+    var chargingOnlyTitle: String { language == .korean ? "전원 연결 중에만 허용" : "Allow only while power adapter is connected" }
     private var batteryPowerModeTitle: String {
         if autoPauseOnLowBattery {
-            return language == .korean ? "배터리 \(lowBatteryLimit)%까지 계속 켜두기" : "Keep on until \(lowBatteryLimit)% battery"
+            return language == .korean ? "배터리 \(lowBatteryLimit)% 이상일 때 허용" : "Allow while battery is above \(lowBatteryLimit)%"
         }
 
-        return language == .korean ? "배터리 제한 없이 계속 켜두기" : "Keep on without battery limit"
+        return language == .korean ? "배터리 제한 없이 허용" : "Allow without battery limit"
     }
 
     var powerModeStatusTitle: String {
         if !allowOnBattery {
-            return chargingOnlyTitle
+            return language == .korean ? "실행 조건: \(chargingOnlyTitle)" : "Condition: \(chargingOnlyTitle)"
         }
 
-        return batteryPowerModeTitle
+        return language == .korean ? "실행 조건: \(batteryPowerModeTitle)" : "Condition: \(batteryPowerModeTitle)"
     }
     var powerModeActionTitle: String {
         if !allowOnBattery {
-            return batteryPowerModeTitle
+            return language == .korean ? "배터리 조건으로 전환" : "Switch to battery condition"
         }
 
-        return chargingOnlyTitle
+        return language == .korean ? "전원 연결 조건으로 전환" : "Switch to power adapter condition"
     }
     var chargingOnlyDetail: String {
         language == .korean
-            ? "켜면 전원 연결 중일 때만 Mac을 계속 켜둡니다. 배터리만 사용할 때는 자동으로 기다립니다."
-            : "When on, LidStay keeps the Mac on only while the power adapter is connected and waits on battery."
+            ? "켜면 전원 연결 중일 때만 실행됩니다. 배터리만 사용할 때는 자동으로 기다립니다."
+            : "When on, LidStay runs only while the power adapter is connected and waits on battery."
     }
     var launchAtLoginTitle: String { language == .korean ? "로그인 시 자동 실행" : "Open at Login" }
     var launchAtLoginStatusTitle: String {
