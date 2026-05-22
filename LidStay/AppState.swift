@@ -311,17 +311,17 @@ final class AppState: ObservableObject {
     var chargingOnlyTitle: String { language == .korean ? "충전 중일 때만 Mac 켜두기" : "Only keep Mac on while charging" }
     var powerModeStatusTitle: String {
         if !allowOnBattery {
-            return language == .korean ? "동작 범위: 전원 연결 시에만" : "Runs only when plugged in"
+            return language == .korean ? "전원 연결 시에만 켜두기" : "Only keep on while plugged in"
         }
 
-        return language == .korean ? "동작 범위: 배터리 사용 중에도" : "Runs even on battery"
+        return language == .korean ? "전원 상태와 상관없이 켜두기" : "Keep on regardless of power source"
     }
     var powerModeActionTitle: String {
         if !allowOnBattery {
-            return language == .korean ? "배터리 사용 중에도 동작" : "Run on battery too"
+            return language == .korean ? "전원 상태와 상관없이 켜두기" : "Keep on regardless of power source"
         }
 
-        return language == .korean ? "전원 연결 시에만 동작" : "Run only when plugged in"
+        return language == .korean ? "전원 연결 시에만 켜두기" : "Keep on only while plugged in"
     }
     var chargingOnlyDetail: String {
         language == .korean
