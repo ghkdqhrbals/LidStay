@@ -43,54 +43,8 @@ struct MenuBarView: View {
 
         Divider()
 
-        Text(appState.powerModeStatusTitle)
-        Button(appState.powerModeActionTitle) {
-            appState.allowOnBattery.toggle()
-        }
-
-        Text(appState.launchAtLoginStatusTitle)
-        Button(appState.launchAtLoginActionTitle) {
-            appState.launchAtLoginEnabled.toggle()
-        }
-
-        Text(appState.lowBatteryStatusTitle)
-        Menu(appState.lowBatteryMenuTitle) {
-            Button(appState.lowBatteryToggleTitle) {
-                appState.autoPauseOnLowBattery.toggle()
-            }
-
-            Divider()
-
-            ForEach(AppState.lowBatteryLimitOptions, id: \.self) { limit in
-                Button {
-                    appState.selectLowBatteryLimit(limit)
-                } label: {
-                    let title = appState.language == .korean ? "\(limit)% 이하" : "\(limit)% or lower"
-                    if appState.autoPauseOnLowBattery, appState.lowBatteryLimit == limit {
-                        Label(title, systemImage: "checkmark")
-                    } else {
-                        Text(title)
-                    }
-                }
-            }
-
-            Button(appState.lowBatteryCustomTitle) {
-                appState.showLowBatteryLimitPrompt()
-            }
-        }
-
-        Menu(appState.languageTitle) {
-            ForEach(AppLanguage.allCases) { language in
-                Button {
-                    appState.language = language
-                } label: {
-                    if appState.language == language {
-                        Label(language.title, systemImage: "checkmark")
-                    } else {
-                        Text(language.title)
-                    }
-                }
-            }
+        Button(appState.optionsTitle) {
+            appState.showOptions()
         }
 
         Divider()

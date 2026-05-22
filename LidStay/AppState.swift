@@ -349,6 +349,7 @@ final class AppState: ObservableObject {
     }
     var languageTitle: String { language == .korean ? "언어" : "Language" }
     var languageSwitchTitle: String { language == .korean ? "English" : "한국어" }
+    var optionsTitle: String { language == .korean ? "옵션" : "Options" }
     var aboutTitle: String { language == .korean ? "정보" : "About" }
     var quitTitle: String { language == .korean ? "종료" : "Quit" }
 
@@ -441,6 +442,10 @@ final class AppState: ObservableObject {
 
     func showAbout() {
         AboutWindowController.shared.show(language: language)
+    }
+
+    func showOptions() {
+        OptionsWindowController.shared.show(appState: self)
     }
 
     func selectDuration(_ option: DurationOption) {
