@@ -12,6 +12,6 @@ cask "lidstay" do
   app "LidStay.app"
 
   zap trash: [
-    "~/Library/Preferences/com.local.LidStay.plist",
+    "~/Library/Preferences/com.ghkdqhrbals.LidStay.plist",
   ]
 end

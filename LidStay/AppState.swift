@@ -632,7 +632,7 @@ private enum DefaultsKey {
 }
 
 private enum LoginItemController {
-    static let label = "com.local.LidStay.loginitem"
+    static let label = "com.ghkdqhrbals.LidStay.loginitem"
 
     static var plistURL: URL {
         FileManager.default.homeDirectoryForCurrentUser

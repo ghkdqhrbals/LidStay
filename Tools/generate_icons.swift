@@ -51,7 +51,7 @@ func drawSignatureIcon(size: CGFloat, menuBar: Bool = false) -> NSBitmapImageRep
 
     let background = NSBezierPath(roundedRect: rect, xRadius: 228 * scale, yRadius: 228 * scale)
     if !menuBar {
-        NSColor(calibratedRed: 0.06, green: 0.07, blue: 0.08, alpha: 1).setFill()
+        NSColor(calibratedRed: 0.07, green: 0.08, blue: 0.09, alpha: 1).setFill()
         background.fill()
     }
 
@@ -61,34 +61,41 @@ func drawSignatureIcon(size: CGFloat, menuBar: Bool = false) -> NSBitmapImageRep
 
     accentColor.set()
 
-    let eye = NSBezierPath()
-    eye.move(to: NSPoint(x: 164 * scale, y: 512 * scale))
-    eye.curve(
-        to: NSPoint(x: 512 * scale, y: 310 * scale),
-        controlPoint1: NSPoint(x: 262 * scale, y: 388 * scale),
-        controlPoint2: NSPoint(x: 386 * scale, y: 310 * scale)
+    let upperLid = NSBezierPath()
+    upperLid.move(to: NSPoint(x: 164 * scale, y: 518 * scale))
+    upperLid.curve(
+        to: NSPoint(x: 860 * scale, y: 518 * scale),
+        controlPoint1: NSPoint(x: 318 * scale, y: 712 * scale),
+        controlPoint2: NSPoint(x: 706 * scale, y: 712 * scale)
     )
-    eye.curve(
-        to: NSPoint(x: 860 * scale, y: 512 * scale),
-        controlPoint1: NSPoint(x: 638 * scale, y: 310 * scale),
-        controlPoint2: NSPoint(x: 762 * scale, y: 388 * scale)
-    )
-    eye.curve(
-        to: NSPoint(x: 512 * scale, y: 714 * scale),
-        controlPoint1: NSPoint(x: 762 * scale, y: 636 * scale),
-        controlPoint2: NSPoint(x: 638 * scale, y: 714 * scale)
-    )
-    eye.curve(
-        to: NSPoint(x: 164 * scale, y: 512 * scale),
-        controlPoint1: NSPoint(x: 386 * scale, y: 714 * scale),
-        controlPoint2: NSPoint(x: 262 * scale, y: 636 * scale)
-    )
-    eye.close()
-    eye.lineWidth = menuBar ? 92 * scale : 78 * scale
-    eye.stroke()
+    upperLid.lineWidth = menuBar ? 94 * scale : 72 * scale
+    upperLid.lineCapStyle = .round
+    upperLid.stroke()
 
-    let pupil = NSBezierPath(ovalIn: NSRect(x: 412 * scale, y: 412 * scale, width: 200 * scale, height: 200 * scale))
-    pupil.fill()
+    let lowerLid = NSBezierPath()
+    lowerLid.move(to: NSPoint(x: 228 * scale, y: 555 * scale))
+    lowerLid.curve(
+        to: NSPoint(x: 796 * scale, y: 555 * scale),
+        controlPoint1: NSPoint(x: 360 * scale, y: 298 * scale),
+        controlPoint2: NSPoint(x: 664 * scale, y: 298 * scale)
+    )
+    lowerLid.lineWidth = menuBar ? 70 * scale : 54 * scale
+    lowerLid.lineCapStyle = .round
+    lowerLid.stroke()
+
+    if !menuBar {
+        NSColor(calibratedRed: 0.15, green: 0.78, blue: 0.48, alpha: 0.28).setStroke()
+        let glow = NSBezierPath()
+        glow.move(to: NSPoint(x: 252 * scale, y: 515 * scale))
+        glow.curve(
+            to: NSPoint(x: 772 * scale, y: 515 * scale),
+            controlPoint1: NSPoint(x: 374 * scale, y: 384 * scale),
+            controlPoint2: NSPoint(x: 650 * scale, y: 384 * scale)
+        )
+        glow.lineWidth = 26 * scale
+        glow.lineCapStyle = .round
+        glow.stroke()
+    }
 
     NSGraphicsContext.restoreGraphicsState()
     return bitmap
