@@ -232,10 +232,18 @@ final class AppState: ObservableObject {
         case .acPowerOnly:
             return statusDetail
         case .stopped:
-            return language == .korean ? "꺼짐" : "Off"
+            return ""
         case .failed:
             return language == .korean ? "실패" : "Failed"
         }
+    }
+
+    var menuStatusText: String {
+        guard !sessionSummaryText.isEmpty else {
+            return statusLineTitle
+        }
+
+        return "\(statusLineTitle) · \(sessionSummaryText)"
     }
 
     var endTimeText: String {

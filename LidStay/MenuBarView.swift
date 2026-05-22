@@ -106,7 +106,7 @@ struct MenuBarView: View {
     }
 
     private var statusItem: some View {
-        Label("\(appState.statusLineTitle) · \(appState.sessionSummaryText)", image: appState.statusDotImageName)
+        Label(appState.menuStatusText, image: appState.statusDotImageName)
             .labelStyle(.titleAndIcon)
     }
 }
