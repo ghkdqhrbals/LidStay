@@ -348,7 +348,7 @@ final class AppState: ObservableObject {
     func durationTitle(for option: DurationOption) -> String {
         switch option.id {
         case "infinite":
-            return language == .korean ? "무제한" : "Unlimited"
+            return language == .korean ? "계속 켜두기" : "Keep On"
         case "30":
             return language == .korean ? "30분" : "30 min"
         case "60":
@@ -565,7 +565,7 @@ final class AppState: ObservableObject {
     }
 
     private var activeSessionText: String {
-        sessionRemainingText ?? (language == .korean ? "무제한" : "Unlimited")
+        sessionRemainingText ?? (language == .korean ? "계속 켜두기" : "Keep On")
     }
 
     private var sessionRemainingText: String? {

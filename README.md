@@ -90,8 +90,8 @@ The built app is created at:
 ## Behavior
 
 - `Mac 켜두기` starts or stops the current session.
-- Choose `무제한`, `30분`, `1시간`, `2시간`, or a custom duration.
-- The menu bar icon changes between off, on, and unlimited states.
+- Choose `계속 켜두기`, `30분`, `1시간`, `2시간`, or a custom duration.
+- The menu bar icon changes between off, on, and keep-on states.
 - `충전 중일 때만 Mac 켜두기` keeps the session active only while power is connected.
 - `로그인 시 자동 실행` reopens LidStay after a full macOS login.
 - Battery sessions automatically pause at 20% or lower.
