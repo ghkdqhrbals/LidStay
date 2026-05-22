@@ -3,7 +3,6 @@ import Foundation
 
 @MainActor
 final class AppState: ObservableObject {
-    static let lowBatteryCutoff = 20
     static let durationOptions: [DurationOption] = [
         DurationOption(id: "infinite", minutes: nil),
         DurationOption(id: "30", minutes: 30),
@@ -11,6 +10,7 @@ final class AppState: ObservableObject {
         DurationOption(id: "120", minutes: 120),
         DurationOption(id: "custom", minutes: -1),
     ]
+    static let lowBatteryLimitOptions = [10, 15, 20, 30, 40]
 
     @Published var isSleepPreventionEnabled: Bool {
         didSet {
@@ -44,6 +44,20 @@ final class AppState: ObservableObject {
             }
             defaults.set(launchAtLoginEnabled, forKey: DefaultsKey.launchAtLoginEnabled)
             setLaunchAtLogin(launchAtLoginEnabled)
+        }
+    }
+
+    @Published var autoPauseOnLowBattery: Bool {
+        didSet {
+            defaults.set(autoPauseOnLowBattery, forKey: DefaultsKey.autoPauseOnLowBattery)
+            refreshAssertion()
+        }
+    }
+
+    @Published var lowBatteryLimitText: String {
+        didSet {
+            defaults.set(lowBatteryLimitText, forKey: DefaultsKey.lowBatteryLimitText)
+            refreshAssertion()
         }
     }
 
@@ -90,6 +104,8 @@ final class AppState: ObservableObject {
         self.allowOnBattery = defaults.bool(forKey: DefaultsKey.allowOnBattery)
         self.language = AppLanguage(rawValue: defaults.string(forKey: DefaultsKey.language) ?? "") ?? .korean
         self.launchAtLoginEnabled = defaults.bool(forKey: DefaultsKey.launchAtLoginEnabled)
+        self.autoPauseOnLowBattery = defaults.object(forKey: DefaultsKey.autoPauseOnLowBattery) as? Bool ?? true
+        self.lowBatteryLimitText = defaults.string(forKey: DefaultsKey.lowBatteryLimitText) ?? "20"
         self.durationMinutesText = defaults.string(forKey: DefaultsKey.durationMinutesText) ?? "60"
         self.selectedDurationID = defaults.string(forKey: DefaultsKey.selectedDurationID) ?? "infinite"
         self.powerSourceState = powerSourceMonitor.currentSnapshot.state
@@ -115,9 +131,9 @@ final class AppState: ObservableObject {
         case .active:
             return language == .korean ? "켜두는 중" : "Keeping On"
         case .batteryBlocked:
-            return language == .korean ? "배터리 제한" : "Battery limited"
+            return language == .korean ? "잠깐 중지" : "Paused"
         case .acPowerOnly:
-            return language == .korean ? "전원 필요" : "Power needed"
+            return language == .korean ? "잠깐 중지" : "Paused"
         case .stopped:
             return language == .korean ? "꺼짐" : "Off"
         case .failed:
@@ -128,17 +144,14 @@ final class AppState: ObservableObject {
     var statusDetail: String {
         switch assertionState {
         case .active:
-            if let sessionRemainingText {
-                return language == .korean ? "Mac을 켜두고 있습니다. \(sessionRemainingText)" : "Your Mac is staying on. \(sessionRemainingText)"
-            }
-            return language == .korean ? "Mac을 계속 켜둡니다. 디스플레이 잠자기는 그대로 허용됩니다." : "Your Mac stays on. Display sleep is still allowed."
+            return activeReasonText
         case .batteryBlocked:
-            if allowOnBattery, let batteryPercentage, batteryPercentage <= Self.lowBatteryCutoff {
-                return language == .korean ? "배터리가 \(batteryPercentage)%입니다. \(Self.lowBatteryCutoff)% 이하에서는 Mac 켜두기를 멈춥니다." : "Battery is \(batteryPercentage)%. Keep Mac On pauses at \(Self.lowBatteryCutoff)% or lower."
+            if allowOnBattery, autoPauseOnLowBattery, let batteryPercentage, batteryPercentage <= lowBatteryLimit {
+                return language == .korean ? "배터리 \(batteryPercentage)%라서 잠깐 중지했습니다." : "Paused because battery is \(batteryPercentage)%."
             }
-            return language == .korean ? "전원을 연결하거나 배터리 사용을 허용하세요." : "Connect power or allow battery use."
+            return language == .korean ? "배터리 사용 중이라 잠깐 중지했습니다." : "Paused while running on battery."
         case .acPowerOnly:
-            return language == .korean ? "전원이 연결되면 Mac 켜두기가 시작됩니다." : "Keep Mac On starts when power is connected."
+            return language == .korean ? "전원 연결을 기다리는 중입니다." : "Waiting for power to be connected."
         case .stopped:
             return language == .korean ? "Mac 켜두기가 꺼져 있습니다." : "Keep Mac On is off."
         case .failed(let code):
@@ -196,11 +209,11 @@ final class AppState: ObservableObject {
 
         switch assertionState {
         case .active:
-            return sessionRemainingText ?? (language == .korean ? "켜두는 중 · 무제한" : "On · Unlimited")
+            return activeReasonText
         case .batteryBlocked:
-            return language == .korean ? "대기 중 · 배터리 제한" : "Waiting · Battery limited"
+            return statusDetail
         case .acPowerOnly:
-            return language == .korean ? "대기 중 · 전원 필요" : "Waiting · Power needed"
+            return statusDetail
         case .stopped:
             return language == .korean ? "꺼짐" : "Off"
         case .failed:
@@ -246,6 +259,29 @@ final class AppState: ObservableObject {
     var cancelTitle: String { language == .korean ? "취소" : "Cancel" }
     var applyTitle: String { language == .korean ? "적용" : "Apply" }
     var moreTitle: String { language == .korean ? "더보기" : "More" }
+    var lowBatteryMenuTitle: String {
+        if autoPauseOnLowBattery {
+            return language == .korean ? "배터리 \(lowBatteryLimit)% 이하에서 자동 중지" : "Pause below \(lowBatteryLimit)% battery"
+        }
+
+        return language == .korean ? "배터리 자동 중지 안 함" : "Do not pause on low battery"
+    }
+    var lowBatteryStatusTitle: String {
+        if autoPauseOnLowBattery {
+            return language == .korean ? "배터리 \(lowBatteryLimit)% 이하가 되면 잠깐 중지" : "Pauses when battery reaches \(lowBatteryLimit)%"
+        }
+
+        return language == .korean ? "배터리가 낮아도 자동 중지하지 않음" : "Does not pause on low battery"
+    }
+    var lowBatteryToggleTitle: String {
+        autoPauseOnLowBattery
+            ? (language == .korean ? "배터리 자동 중지 끄기" : "Turn off battery pause")
+            : (language == .korean ? "배터리 자동 중지 켜기" : "Turn on battery pause")
+    }
+    var lowBatteryCustomTitle: String { language == .korean ? "직접 퍼센트 입력..." : "Custom Percent..." }
+    var lowBatteryPromptTitle: String { language == .korean ? "배터리 자동 중지" : "Battery Pause" }
+    var lowBatteryPromptMessage: String { language == .korean ? "몇 퍼센트 이하에서 잠깐 중지할지 입력하세요." : "Enter the battery percentage where LidStay should pause." }
+    var percentPlaceholder: String { language == .korean ? "퍼센트" : "Percent" }
     var allowBatteryTitle: String { language == .korean ? "배터리에서도 사용" : "Allow on Battery" }
     var chargingOnlyTitle: String { language == .korean ? "충전 중일 때만 Mac 켜두기" : "Only keep Mac on while charging" }
     var powerModeStatusTitle: String {
@@ -280,8 +316,17 @@ final class AppState: ObservableObject {
     }
     var languageTitle: String { language == .korean ? "언어" : "Language" }
     var languageSwitchTitle: String { language == .korean ? "English" : "한국어" }
-    var aboutTitle: String { language == .korean ? "LidStay 정보" : "About LidStay" }
-    var quitTitle: String { language == .korean ? "LidStay 종료" : "Quit LidStay" }
+    var aboutTitle: String { language == .korean ? "정보..." : "About..." }
+    var quitTitle: String { language == .korean ? "종료" : "Quit" }
+
+    var lowBatteryLimit: Int {
+        let trimmed = lowBatteryLimitText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Int(trimmed) else {
+            return 20
+        }
+
+        return min(95, max(1, value))
+    }
 
     func durationTitle(for option: DurationOption) -> String {
         switch option.id {
@@ -404,6 +449,39 @@ final class AppState: ObservableObject {
         startSelectedSession()
     }
 
+    func selectLowBatteryLimit(_ limit: Int) {
+        lowBatteryLimitText = String(limit)
+        autoPauseOnLowBattery = true
+    }
+
+    func showLowBatteryLimitPrompt() {
+        let alert = NSAlert()
+        alert.messageText = lowBatteryPromptTitle
+        alert.informativeText = lowBatteryPromptMessage
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: applyTitle)
+        alert.addButton(withTitle: cancelTitle)
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 180, height: 24))
+        textField.stringValue = "\(lowBatteryLimit)"
+        textField.placeholderString = percentPlaceholder
+        alert.accessoryView = textField
+
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else {
+            return
+        }
+
+        let trimmed = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let percent = Int(trimmed), percent > 0, percent < 100 else {
+            return
+        }
+
+        lowBatteryLimitText = String(percent)
+        autoPauseOnLowBattery = true
+    }
+
     func switchLanguage() {
         language = language == .korean ? .english : .korean
     }
@@ -449,7 +527,7 @@ final class AppState: ObservableObject {
             assertionState = assertionController.acquire()
         case .battery:
             if allowOnBattery {
-                if let batteryPercentage, batteryPercentage <= Self.lowBatteryCutoff {
+                if autoPauseOnLowBattery, let batteryPercentage, batteryPercentage <= lowBatteryLimit {
                     assertionController.release()
                     assertionState = .batteryBlocked
                     return
@@ -469,6 +547,26 @@ final class AppState: ObservableObject {
         }
     }
 
+    private var activeReasonText: String {
+        let timeText = sessionRemainingText ?? (language == .korean ? "무제한" : "Unlimited")
+        let powerText: String
+
+        switch powerSourceState {
+        case .acPower:
+            powerText = language == .korean ? "전원 연결됨" : "plugged in"
+        case .battery:
+            if let batteryPercentage {
+                powerText = language == .korean ? "배터리 \(batteryPercentage)%" : "\(batteryPercentage)% battery"
+            } else {
+                powerText = language == .korean ? "배터리 사용 중" : "on battery"
+            }
+        case .unknown:
+            powerText = language == .korean ? "전원 상태 확인 중" : "checking power"
+        }
+
+        return language == .korean ? "직접 켜둠 · \(powerText) · \(timeText)" : "Manual · \(powerText) · \(timeText)"
+    }
+
     private var sessionRemainingText: String? {
         guard let sessionEndDate else {
             return nil
@@ -479,10 +577,10 @@ final class AppState: ObservableObject {
         let minutes = (remaining % 3600) / 60
 
         if hours > 0 {
-            return language == .korean ? "켜두는 중 · \(hours)시간 \(minutes)분 남음" : "On · \(hours)h \(minutes)m left"
+            return language == .korean ? "\(hours)시간 \(minutes)분 남음" : "\(hours)h \(minutes)m left"
         }
 
-        return language == .korean ? "켜두는 중 · \(max(1, minutes))분 남음" : "On · \(max(1, minutes))m left"
+        return language == .korean ? "\(max(1, minutes))분 남음" : "\(max(1, minutes))m left"
     }
 
     private func startSessionTimer() {
@@ -529,6 +627,8 @@ private enum DefaultsKey {
     static let selectedDurationID = "selectedDurationID"
     static let language = "language"
     static let launchAtLoginEnabled = "launchAtLoginEnabled"
+    static let autoPauseOnLowBattery = "autoPauseOnLowBattery"
+    static let lowBatteryLimitText = "lowBatteryLimitText"
 }
 
 private enum LoginItemController {

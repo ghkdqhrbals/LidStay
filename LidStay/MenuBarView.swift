@@ -53,6 +53,32 @@ struct MenuBarView: View {
             appState.launchAtLoginEnabled.toggle()
         }
 
+        Text(appState.lowBatteryStatusTitle)
+        Menu(appState.lowBatteryMenuTitle) {
+            Button(appState.lowBatteryToggleTitle) {
+                appState.autoPauseOnLowBattery.toggle()
+            }
+
+            Divider()
+
+            ForEach(AppState.lowBatteryLimitOptions, id: \.self) { limit in
+                Button {
+                    appState.selectLowBatteryLimit(limit)
+                } label: {
+                    let title = appState.language == .korean ? "\(limit)% 이하" : "\(limit)% or lower"
+                    if appState.autoPauseOnLowBattery, appState.lowBatteryLimit == limit {
+                        Label(title, systemImage: "checkmark")
+                    } else {
+                        Text(title)
+                    }
+                }
+            }
+
+            Button(appState.lowBatteryCustomTitle) {
+                appState.showLowBatteryLimitPrompt()
+            }
+        }
+
         Menu(appState.languageTitle) {
             ForEach(AppLanguage.allCases) { language in
                 Button {
@@ -80,11 +106,31 @@ struct MenuBarView: View {
     }
 
     private var statusItem: some View {
-        Button {
-        } label: {
-            Label(appState.sessionSummaryText, systemImage: appState.statusIndicatorSymbolName)
+        HStack(spacing: 9) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 9, height: 9)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(appState.statusTitle)
+                Text(appState.sessionSummaryText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .disabled(true)
+        .padding(.vertical, 2)
     }
 
+    private var statusColor: Color {
+        switch appState.assertionState {
+        case .active:
+            return .green
+        case .batteryBlocked, .acPowerOnly:
+            return .orange
+        case .failed:
+            return .red
+        case .stopped:
+            return .secondary
+        }
+    }
 }
