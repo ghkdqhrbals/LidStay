@@ -53,6 +53,16 @@ struct MenuBarView: View {
             }
         }
 
+        Button {
+            appState.launchAtLoginEnabled.toggle()
+        } label: {
+            if appState.launchAtLoginEnabled {
+                Label(appState.launchAtLoginMenuTitle, systemImage: "checkmark")
+            } else {
+                Text(appState.launchAtLoginMenuTitle)
+            }
+        }
+
         Menu(appState.languageTitle) {
             ForEach(AppLanguage.allCases) { language in
                 Button {

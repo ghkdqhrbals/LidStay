@@ -22,6 +22,7 @@ The built app is created at:
 - The main tab is for choosing time and turning awake mode on or off.
 - The options tab contains charging-only behavior, language, About, and quit.
 - `충전 중일 때만 Mac 켜두기` keeps the session active only while power is connected.
+- `로그인 시 자동 실행` can reopen LidStay after logging in.
 - The default session is infinite.
 - `배터리에서도 사용` permits the assertion while running on battery, although macOS may limit closed-lid behavior on battery.
 - By default, battery power blocks the assertion to reduce drain and heat.

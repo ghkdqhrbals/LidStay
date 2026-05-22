@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ServiceManagement
 
 @MainActor
 final class AppState: ObservableObject {
@@ -34,6 +35,15 @@ final class AppState: ObservableObject {
     @Published var language: AppLanguage {
         didSet {
             defaults.set(language.rawValue, forKey: DefaultsKey.language)
+        }
+    }
+
+    @Published var launchAtLoginEnabled: Bool {
+        didSet {
+            guard launchAtLoginEnabled != oldValue else {
+                return
+            }
+            setLaunchAtLogin(launchAtLoginEnabled)
         }
     }
 
@@ -79,6 +89,7 @@ final class AppState: ObservableObject {
         self.isSleepPreventionEnabled = defaults.bool(forKey: DefaultsKey.isSleepPreventionEnabled)
         self.allowOnBattery = defaults.bool(forKey: DefaultsKey.allowOnBattery)
         self.language = AppLanguage(rawValue: defaults.string(forKey: DefaultsKey.language) ?? "") ?? .korean
+        self.launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
         self.durationMinutesText = defaults.string(forKey: DefaultsKey.durationMinutesText) ?? "60"
         self.selectedDurationID = defaults.string(forKey: DefaultsKey.selectedDurationID) ?? "infinite"
         self.powerSourceState = powerSourceMonitor.currentSnapshot.state
@@ -243,6 +254,10 @@ final class AppState: ObservableObject {
             ? "켜면 전원 연결 중에만 동작합니다. 배터리만 사용할 때는 자동으로 기다립니다."
             : "When on, LidStay runs only while power is connected and waits on battery."
     }
+    var launchAtLoginTitle: String { language == .korean ? "로그인 시 자동 실행" : "Open at Login" }
+    var launchAtLoginMenuTitle: String {
+        "\(launchAtLoginTitle): \(launchAtLoginEnabled ? onTitle : offTitle)"
+    }
     var languageTitle: String { language == .korean ? "언어" : "Language" }
     var languageSwitchTitle: String { language == .korean ? "English" : "한국어" }
     var aboutTitle: String { language == .korean ? "LidStay 정보" : "About LidStay" }
@@ -375,6 +390,10 @@ final class AppState: ObservableObject {
         language = language == .korean ? .english : .korean
     }
 
+    func refreshLaunchAtLoginStatus() {
+        launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+    }
+
     func startSelectedSession() {
         guard let option = Self.durationOptions.first(where: { $0.id == selectedDurationID }) else {
             startSession(duration: nil)
@@ -469,6 +488,18 @@ final class AppState: ObservableObject {
 
     private func clearSession() {
         sessionEndDate = nil
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+        }
     }
 }
 
