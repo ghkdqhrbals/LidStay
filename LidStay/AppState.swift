@@ -248,25 +248,16 @@ final class AppState: ObservableObject {
     var moreTitle: String { language == .korean ? "더보기" : "More" }
     var allowBatteryTitle: String { language == .korean ? "배터리에서도 사용" : "Allow on Battery" }
     var chargingOnlyTitle: String { language == .korean ? "충전 중일 때만 Mac 켜두기" : "Only keep Mac on while charging" }
-    var chargingOnlyMenuTitle: String {
-        let stateText = !allowOnBattery ? onTitle : offTitle
-        return "\(chargingOnlyTitle): \(stateText)"
-    }
     var chargingOnlyDetail: String {
         language == .korean
             ? "켜면 전원 연결 중에만 동작합니다. 배터리만 사용할 때는 자동으로 기다립니다."
             : "When on, LidStay runs only while power is connected and waits on battery."
     }
     var launchAtLoginTitle: String { language == .korean ? "로그인 시 자동 실행" : "Open at Login" }
-    var launchAtLoginMenuTitle: String {
-        "\(launchAtLoginTitle): \(launchAtLoginEnabled ? onTitle : offTitle)"
-    }
     var languageTitle: String { language == .korean ? "언어" : "Language" }
     var languageSwitchTitle: String { language == .korean ? "English" : "한국어" }
     var aboutTitle: String { language == .korean ? "LidStay 정보" : "About LidStay" }
     var quitTitle: String { language == .korean ? "LidStay 종료" : "Quit LidStay" }
-    var onTitle: String { language == .korean ? "켜짐" : "On" }
-    var offTitle: String { language == .korean ? "꺼짐" : "Off" }
 
     func durationTitle(for option: DurationOption) -> String {
         switch option.id {

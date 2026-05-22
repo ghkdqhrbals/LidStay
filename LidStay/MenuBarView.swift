@@ -47,9 +47,9 @@ struct MenuBarView: View {
             appState.allowOnBattery.toggle()
         } label: {
             if !appState.allowOnBattery {
-                Label(appState.chargingOnlyMenuTitle, systemImage: "checkmark")
+                Label(appState.chargingOnlyTitle, systemImage: "checkmark")
             } else {
-                Text(appState.chargingOnlyMenuTitle)
+                Text(appState.chargingOnlyTitle)
             }
         }
 
@@ -57,9 +57,9 @@ struct MenuBarView: View {
             appState.launchAtLoginEnabled.toggle()
         } label: {
             if appState.launchAtLoginEnabled {
-                Label(appState.launchAtLoginMenuTitle, systemImage: "checkmark")
+                Label(appState.launchAtLoginTitle, systemImage: "checkmark")
             } else {
-                Text(appState.launchAtLoginMenuTitle)
+                Text(appState.launchAtLoginTitle)
             }
         }
 
