@@ -26,10 +26,7 @@ struct MenuBarView: View {
         Menu(appState.timeMenuTitle) {
             ForEach(AppState.durationOptions) { option in
                 Button {
-                    appState.selectedDurationID = option.id
-                    if option.id == "custom" {
-                        appState.showCustomMinutesPrompt()
-                    }
+                    appState.selectDuration(option)
                 } label: {
                     if appState.selectedDurationID == option.id {
                         Label(appState.durationTitle(for: option), systemImage: "checkmark")

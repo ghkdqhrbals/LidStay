@@ -331,6 +331,16 @@ final class AppState: ObservableObject {
         AboutWindowController.shared.show(language: language)
     }
 
+    func selectDuration(_ option: DurationOption) {
+        if option.id == "custom" {
+            showCustomMinutesPrompt()
+            return
+        }
+
+        selectedDurationID = option.id
+        startSelectedSession()
+    }
+
     func showCustomMinutesPrompt() {
         let alert = NSAlert()
         alert.messageText = customMinutesPromptTitle
@@ -357,9 +367,7 @@ final class AppState: ObservableObject {
 
         durationMinutesText = String(format: "%.0f", minutes)
         selectedDurationID = "custom"
-        if isSleepPreventionEnabled {
-            startSelectedSession()
-        }
+        startSelectedSession()
     }
 
     func switchLanguage() {
