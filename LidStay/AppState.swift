@@ -309,16 +309,24 @@ final class AppState: ObservableObject {
     var percentPlaceholder: String { language == .korean ? "퍼센트" : "Percent" }
     var allowBatteryTitle: String { language == .korean ? "배터리에서도 사용" : "Allow on Battery" }
     var chargingOnlyTitle: String { language == .korean ? "충전 중일 때만 Mac 켜두기" : "Only keep Mac on while charging" }
+    private var batteryPowerModeTitle: String {
+        if autoPauseOnLowBattery {
+            return language == .korean ? "배터리 \(lowBatteryLimit)%까지 켜두기" : "Keep on until \(lowBatteryLimit)% battery"
+        }
+
+        return language == .korean ? "배터리 제한 없이 켜두기" : "Keep on without battery limit"
+    }
+
     var powerModeStatusTitle: String {
         if !allowOnBattery {
             return language == .korean ? "전원 연결 시에만 켜두기" : "Only keep on while plugged in"
         }
 
-        return language == .korean ? "전원 상태와 상관없이 켜두기" : "Keep on regardless of power source"
+        return batteryPowerModeTitle
     }
     var powerModeActionTitle: String {
         if !allowOnBattery {
-            return language == .korean ? "전원 상태와 상관없이 켜두기" : "Keep on regardless of power source"
+            return batteryPowerModeTitle
         }
 
         return language == .korean ? "전원 연결 시에만 켜두기" : "Keep on only while plugged in"
