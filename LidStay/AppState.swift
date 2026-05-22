@@ -248,12 +248,19 @@ final class AppState: ObservableObject {
     var moreTitle: String { language == .korean ? "더보기" : "More" }
     var allowBatteryTitle: String { language == .korean ? "배터리에서도 사용" : "Allow on Battery" }
     var chargingOnlyTitle: String { language == .korean ? "충전 중일 때만 Mac 켜두기" : "Only keep Mac on while charging" }
-    var chargingOnlyStateTitle: String {
+    var powerModeStatusTitle: String {
         if !allowOnBattery {
-            return language == .korean ? "충전 중일 때만 Mac 켜두는 중" : "Only keeping Mac on while charging"
+            return language == .korean ? "전원 연결 시에만 Mac 켜둠" : "Keeps Mac on only when plugged in"
         }
 
-        return language == .korean ? "배터리에서도 Mac 켜두기" : "Also keep Mac on battery"
+        return language == .korean ? "배터리 사용 중에도 Mac 켜둠" : "Keeps Mac on even on battery"
+    }
+    var powerModeActionTitle: String {
+        if !allowOnBattery {
+            return language == .korean ? "배터리에서도 켜두기" : "Also keep on battery"
+        }
+
+        return language == .korean ? "전원 연결 시에만 켜두기" : "Only keep on when plugged in"
     }
     var chargingOnlyDetail: String {
         language == .korean
@@ -261,10 +268,15 @@ final class AppState: ObservableObject {
             : "When on, LidStay runs only while power is connected and waits on battery."
     }
     var launchAtLoginTitle: String { language == .korean ? "로그인 시 자동 실행" : "Open at Login" }
-    var launchAtLoginStateTitle: String {
+    var launchAtLoginStatusTitle: String {
         launchAtLoginEnabled
-            ? (language == .korean ? "로그인 시 자동 실행 중" : "Opening at login")
-            : launchAtLoginTitle
+            ? (language == .korean ? "로그인하면 자동으로 열림" : "Opens automatically after login")
+            : (language == .korean ? "로그인해도 자동으로 열리지 않음" : "Does not open automatically after login")
+    }
+    var launchAtLoginActionTitle: String {
+        launchAtLoginEnabled
+            ? (language == .korean ? "자동 실행 끄기" : "Turn off auto launch")
+            : (language == .korean ? "로그인 시 자동 실행하기" : "Open at login")
     }
     var languageTitle: String { language == .korean ? "언어" : "Language" }
     var languageSwitchTitle: String { language == .korean ? "English" : "한국어" }

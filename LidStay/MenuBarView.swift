@@ -43,16 +43,14 @@ struct MenuBarView: View {
 
         Divider()
 
-        Button {
+        Text(appState.powerModeStatusTitle)
+        Button(appState.powerModeActionTitle) {
             appState.allowOnBattery.toggle()
-        } label: {
-            Text(appState.chargingOnlyStateTitle)
         }
 
-        Button {
+        Text(appState.launchAtLoginStatusTitle)
+        Button(appState.launchAtLoginActionTitle) {
             appState.launchAtLoginEnabled.toggle()
-        } label: {
-            Text(appState.launchAtLoginStateTitle)
         }
 
         Menu(appState.languageTitle) {
