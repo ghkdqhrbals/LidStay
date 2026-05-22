@@ -229,7 +229,7 @@ func drawStatusDot(size: CGFloat, color: NSColor) -> NSBitmapImageRep {
     rect.fill()
 
     color.setFill()
-    let inset = size * 0.22
+    let inset = size * 0.16
     NSBezierPath(ovalIn: rect.insetBy(dx: inset, dy: inset)).fill()
 
     NSGraphicsContext.restoreGraphicsState()
@@ -258,7 +258,7 @@ try writePNG(drawMenuBarIcon(size: 52, active: true), to: menuIconOnDir.appendin
 try writePNG(drawMenuBarIcon(size: 52, active: false), to: menuIconOffDir.appendingPathComponent("menubar-icon-off.png"))
 try writePNG(drawMenuBarIcon(size: 52, active: true, infinite: true), to: menuIconInfiniteDir.appendingPathComponent("menubar-icon-infinite.png"))
 
-try writePNG(drawStatusDot(size: 18, color: NSColor(calibratedRed: 0.20, green: 0.86, blue: 0.32, alpha: 1)), to: statusDotGreenDir.appendingPathComponent("status-dot-green.png"))
-try writePNG(drawStatusDot(size: 18, color: NSColor(calibratedRed: 1.00, green: 0.58, blue: 0.18, alpha: 1)), to: statusDotOrangeDir.appendingPathComponent("status-dot-orange.png"))
-try writePNG(drawStatusDot(size: 18, color: NSColor(calibratedWhite: 0.58, alpha: 1)), to: statusDotGrayDir.appendingPathComponent("status-dot-gray.png"))
-try writePNG(drawStatusDot(size: 18, color: NSColor(calibratedRed: 0.96, green: 0.22, blue: 0.22, alpha: 1)), to: statusDotRedDir.appendingPathComponent("status-dot-red.png"))
+try writePNG(drawStatusDot(size: 24, color: NSColor(calibratedRed: 0.20, green: 0.86, blue: 0.32, alpha: 1)), to: statusDotGreenDir.appendingPathComponent("status-dot-green.png"))
+try writePNG(drawStatusDot(size: 24, color: NSColor(calibratedRed: 1.00, green: 0.58, blue: 0.18, alpha: 1)), to: statusDotOrangeDir.appendingPathComponent("status-dot-orange.png"))
+try writePNG(drawStatusDot(size: 24, color: NSColor(calibratedWhite: 0.58, alpha: 1)), to: statusDotGrayDir.appendingPathComponent("status-dot-gray.png"))
+try writePNG(drawStatusDot(size: 24, color: NSColor(calibratedRed: 0.96, green: 0.22, blue: 0.22, alpha: 1)), to: statusDotRedDir.appendingPathComponent("status-dot-red.png"))

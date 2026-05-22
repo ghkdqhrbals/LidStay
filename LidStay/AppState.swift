@@ -286,17 +286,17 @@ final class AppState: ObservableObject {
     var moreTitle: String { language == .korean ? "더보기" : "More" }
     var lowBatteryMenuTitle: String {
         if autoPauseOnLowBattery {
-            return language == .korean ? "배터리 \(lowBatteryLimit)% 이하에서 자동 중지" : "Pause below \(lowBatteryLimit)% battery"
+            return language == .korean ? "배터리 보호: \(lowBatteryLimit)% 이하" : "Battery protection: below \(lowBatteryLimit)%"
         }
 
-        return language == .korean ? "배터리 자동 중지 안 함" : "Do not pause on low battery"
+        return language == .korean ? "배터리 보호: 사용 안 함" : "Battery protection: off"
     }
     var lowBatteryStatusTitle: String {
         if autoPauseOnLowBattery {
-            return language == .korean ? "배터리 \(lowBatteryLimit)% 이하가 되면 잠깐 중지" : "Pauses when battery reaches \(lowBatteryLimit)%"
+            return language == .korean ? "배터리 보호: \(lowBatteryLimit)% 이하에서 잠깐 중지" : "Battery protection: pauses below \(lowBatteryLimit)%"
         }
 
-        return language == .korean ? "배터리가 낮아도 자동 중지하지 않음" : "Does not pause on low battery"
+        return language == .korean ? "배터리 보호: 사용 안 함" : "Battery protection: off"
     }
     var lowBatteryToggleTitle: String {
         autoPauseOnLowBattery
@@ -311,17 +311,17 @@ final class AppState: ObservableObject {
     var chargingOnlyTitle: String { language == .korean ? "충전 중일 때만 Mac 켜두기" : "Only keep Mac on while charging" }
     var powerModeStatusTitle: String {
         if !allowOnBattery {
-            return language == .korean ? "전원 연결 시에만 Mac 켜둠" : "Keeps Mac on only when plugged in"
+            return language == .korean ? "동작 범위: 전원 연결 시에만" : "Runs only when plugged in"
         }
 
-        return language == .korean ? "배터리 사용 중에도 Mac 켜둠" : "Keeps Mac on even on battery"
+        return language == .korean ? "동작 범위: 배터리 사용 중에도" : "Runs even on battery"
     }
     var powerModeActionTitle: String {
         if !allowOnBattery {
-            return language == .korean ? "배터리에서도 켜두기" : "Also keep on battery"
+            return language == .korean ? "배터리 사용 중에도 동작" : "Run on battery too"
         }
 
-        return language == .korean ? "전원 연결 시에만 켜두기" : "Only keep on when plugged in"
+        return language == .korean ? "전원 연결 시에만 동작" : "Run only when plugged in"
     }
     var chargingOnlyDetail: String {
         language == .korean
