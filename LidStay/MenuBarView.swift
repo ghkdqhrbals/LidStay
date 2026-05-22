@@ -17,7 +17,7 @@ struct MenuBarView: View {
             appState.isSleepPreventionEnabled = newValue
         } label: {
             if appState.isSleepPreventionEnabled {
-                Label(appState.awakeToggleTitle, systemImage: "checkmark")
+                Label(appState.stopAwakeTitle, systemImage: "stop.circle")
             } else {
                 Text(appState.awakeToggleTitle)
             }

@@ -223,6 +223,7 @@ final class AppState: ObservableObject {
     var mainTabTitle: String { language == .korean ? "실행" : "Run" }
     var optionsTabTitle: String { language == .korean ? "옵션" : "Options" }
     var awakeToggleTitle: String { language == .korean ? "Mac 켜두기" : "Keep Mac On" }
+    var stopAwakeTitle: String { language == .korean ? "Mac 켜두기 중지" : "Stop Keeping Mac On" }
     var minutesPlaceholder: String { language == .korean ? "분" : "Minutes" }
     var minutesUnit: String { language == .korean ? "분" : "min" }
     var customMinutesTitle: String { language == .korean ? "직접 시간 입력..." : "Custom Minutes..." }
