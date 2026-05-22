@@ -17,6 +17,7 @@
 		8A1C3C932C6A4A12008B1010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8A1C3C902C6A4A12008B1010 /* Assets.xcassets */; };
 		8A1C3CA02C6A4A13008B1010 /* OptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C9E2C6A4A13008B1010 /* OptionsView.swift */; };
 		8A1C3CA12C6A4A13008B1010 /* OptionsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C9F2C6A4A13008B1010 /* OptionsWindowController.swift */; };
+		8A1C3CA32C6A4A14008B1010 /* CLICommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3CA22C6A4A14008B1010 /* CLICommand.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 		8A1C3C902C6A4A12008B1010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8A1C3C9E2C6A4A13008B1010 /* OptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptionsView.swift; sourceTree = "<group>"; };
 		8A1C3C9F2C6A4A13008B1010 /* OptionsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptionsWindowController.swift; sourceTree = "<group>"; };
+		8A1C3CA22C6A4A14008B1010 /* CLICommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLICommand.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -71,6 +73,7 @@
 				8A1C3C782C6A4A11008B1010 /* AppState.swift */,
 				8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */,
 				8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */,
+				8A1C3CA22C6A4A14008B1010 /* CLICommand.swift */,
 				8A1C3C9E2C6A4A13008B1010 /* OptionsView.swift */,
 				8A1C3C9F2C6A4A13008B1010 /* OptionsWindowController.swift */,
 				8A1C3C8E2C6A4A12008B1010 /* AboutView.swift */,
@@ -159,6 +162,7 @@
 				8A1C3C812C6A4A11008B1010 /* PowerSourceMonitor.swift in Sources */,
 				8A1C3C912C6A4A12008B1010 /* AboutView.swift in Sources */,
 				8A1C3C922C6A4A12008B1010 /* AboutWindowController.swift in Sources */,
+				8A1C3CA32C6A4A14008B1010 /* CLICommand.swift in Sources */,
 				8A1C3CA02C6A4A13008B1010 /* OptionsView.swift in Sources */,
 				8A1C3CA12C6A4A13008B1010 /* OptionsWindowController.swift in Sources */,
 			);

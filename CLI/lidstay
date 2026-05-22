@@ -1,0 +1,151 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+APP_BUNDLE_ID="com.ghkdqhrbals.LidStay"
+COMMAND_NOTIFICATION="com.ghkdqhrbals.LidStay.cli.command"
+STATUS_FILE="$HOME/Library/Application Support/LidStay/status.json"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  lidstay on [duration]
+  lidstay on until-exit <command...>
+  lidstay off
+  lidstay status
+
+Examples:
+  lidstay on 2h
+  lidstay on 30m
+  lidstay on until-exit npm run dev
+  lidstay off
+  lidstay status
+USAGE
+}
+
+ensure_app_running() {
+  /usr/bin/open -gj -b "$APP_BUNDLE_ID" >/dev/null 2>&1 || true
+  sleep 0.35
+}
+
+post_command() {
+  local action="$1"
+  local duration="${2:-}"
+
+  /usr/bin/osascript -l JavaScript -e '
+ObjC.import("Foundation")
+
+function run(argv) {
+  const center = $.NSDistributedNotificationCenter.defaultCenter
+  const info = $.NSMutableDictionary.dictionary
+  const action = String(ObjC.unwrap(argv[0]) || "")
+  const duration = argv.length > 1 ? String(ObjC.unwrap(argv[1]) || "") : ""
+  info.setObjectForKey($(action), $("action"))
+  if (duration.length > 0) {
+    info.setObjectForKey($(duration), $("durationSeconds"))
+  }
+  center.postNotificationNameObjectUserInfoDeliverImmediately(
+    $("'"$COMMAND_NOTIFICATION"'"),
+    $("lidstay"),
+    info,
+    true
+  )
+}
+' "$action" "$duration" >/dev/null
+}
+
+parse_duration_seconds() {
+  local value="$1"
+  if [[ "$value" =~ '^([0-9]+)(s|sec|secs|second|seconds)$' ]]; then
+    echo "$(( ${match[1]} ))"
+  elif [[ "$value" =~ '^([0-9]+)(m|min|mins|minute|minutes)$' ]]; then
+    echo "$(( ${match[1]} * 60 ))"
+  elif [[ "$value" =~ '^([0-9]+)(h|hr|hrs|hour|hours)$' ]]; then
+    echo "$(( ${match[1]} * 3600 ))"
+  elif [[ "$value" =~ '^([0-9]+)$' ]]; then
+    echo "$(( ${match[1]} * 60 ))"
+  else
+    echo "Invalid duration: $value" >&2
+    echo "Use formats like 30m, 2h, 90s, or a plain minute value." >&2
+    exit 64
+  fi
+}
+
+print_status() {
+  ensure_app_running
+  post_command status
+  sleep 0.15
+
+  if [[ ! -f "$STATUS_FILE" ]]; then
+    echo "LidStay status is not available yet."
+    exit 1
+  fi
+
+  /usr/bin/osascript -l JavaScript -e '
+ObjC.import("Foundation")
+
+function run(argv) {
+  const path = argv[0]
+  const data = $.NSData.dataWithContentsOfFile(path)
+  if (!data) {
+    console.log("LidStay status is not available yet.")
+    return 1
+  }
+  const parsed = $.NSJSONSerialization.JSONObjectWithDataOptionsError(data, 0, null)
+  const enabled = ObjC.unwrap(parsed.objectForKey("enabled")) ? "on" : "off"
+  const state = ObjC.unwrap(parsed.objectForKey("state"))
+  const detail = ObjC.unwrap(parsed.objectForKey("detail"))
+  const duration = ObjC.unwrap(parsed.objectForKey("duration"))
+  const sessionEndDate = ObjC.unwrap(parsed.objectForKey("sessionEndDate"))
+
+  console.log(`LidStay: ${enabled}`)
+  console.log(`State: ${state}`)
+  console.log(`Duration: ${duration}`)
+  if (sessionEndDate) console.log(`Until: ${sessionEndDate}`)
+  console.log(`Detail: ${detail}`)
+}
+' "$STATUS_FILE"
+}
+
+command="${1:-}"
+case "$command" in
+  on)
+    shift
+    ensure_app_running
+    if [[ "${1:-}" == "until-exit" ]]; then
+      shift
+      if [[ "$#" -eq 0 ]]; then
+        echo "Missing command after: lidstay on until-exit" >&2
+        exit 64
+      fi
+      post_command on
+      cleanup() {
+        post_command off || true
+      }
+      trap cleanup EXIT INT TERM
+      "$@"
+    elif [[ "$#" -gt 0 ]]; then
+      seconds="$(parse_duration_seconds "$1")"
+      post_command on "$seconds"
+      echo "LidStay on for $1"
+    else
+      post_command on
+      echo "LidStay on"
+    fi
+    ;;
+  off)
+    ensure_app_running
+    post_command off
+    echo "LidStay off"
+    ;;
+  status)
+    print_status
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    echo "Unknown command: $command" >&2
+    usage >&2
+    exit 64
+    ;;
+esac

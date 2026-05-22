@@ -29,8 +29,10 @@ cask "lidstay" do
   depends_on macos: ">= :ventura"
 
   app "LidStay.app"
+  binary "lidstay"
 
   zap trash: [
+    "~/Library/Application Support/LidStay/status.json",
     "~/Library/Preferences/com.ghkdqhrbals.LidStay.plist",
   ]
 end

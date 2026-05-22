@@ -96,6 +96,7 @@ final class AppState: ObservableObject {
     private let powerSourceMonitor: PowerSourceMonitor
     private var sessionTimer: Timer?
     private var iconAnimationTask: Task<Void, Never>?
+    private var cliCommandObserver: NSObjectProtocol?
 
     init(
         defaults: UserDefaults = .standard,
@@ -129,6 +130,8 @@ final class AppState: ObservableObject {
             setLaunchAtLogin(true)
         }
         refreshAssertion()
+        startCLICommandObserver()
+        writeCLIStatus()
     }
 
     var statusTitle: String {
@@ -225,12 +228,12 @@ final class AppState: ObservableObject {
     }
 
     var sessionSummaryText: String {
-        if selectedDurationID == "custom", !canStartCustomDuration {
-            return language == .korean ? "시간 입력" : "Enter time"
+        guard isSleepPreventionEnabled else {
+            return ""
         }
 
-        guard isSleepPreventionEnabled else {
-            return language == .korean ? "꺼짐" : "Off"
+        if selectedDurationID == "custom", !canStartCustomDuration {
+            return language == .korean ? "시간 입력" : "Enter time"
         }
 
         switch assertionState {
@@ -418,6 +421,9 @@ final class AppState: ObservableObject {
         sessionTimer?.invalidate()
         assertionController.release()
         powerSourceMonitor.stop()
+        if let cliCommandObserver {
+            DistributedNotificationCenter.default().removeObserver(cliCommandObserver)
+        }
     }
 
     func setSleepPreventionEnabled(_ enabled: Bool) {
@@ -442,6 +448,7 @@ final class AppState: ObservableObject {
         } else {
             refreshAssertion()
         }
+        writeCLIStatus()
     }
 
     func startCustomMinutesSession() {
@@ -460,6 +467,7 @@ final class AppState: ObservableObject {
         isSleepPreventionEnabled = false
         assertionController.release()
         assertionState = .stopped
+        writeCLIStatus()
     }
 
     func showAbout() {
@@ -579,6 +587,7 @@ final class AppState: ObservableObject {
         guard isSleepPreventionEnabled else {
             assertionController.release()
             assertionState = .stopped
+            writeCLIStatus()
             return
         }
 
@@ -590,6 +599,7 @@ final class AppState: ObservableObject {
                 if autoPauseOnLowBattery, let batteryPercentage, batteryPercentage <= lowBatteryLimit {
                     assertionController.release()
                     assertionState = .batteryBlocked
+                    writeCLIStatus()
                     return
                 }
                 assertionState = assertionController.acquire()
@@ -605,6 +615,8 @@ final class AppState: ObservableObject {
                 assertionState = .acPowerOnly
             }
         }
+
+        writeCLIStatus()
     }
 
     private var activeSessionText: String {
@@ -670,6 +682,87 @@ final class AppState: ObservableObject {
             try? await Task.sleep(nanoseconds: 42_000_000)
             self?.menuBarIconAnimationName = nil
         }
+    }
+
+    private func startCLICommandObserver() {
+        cliCommandObserver = DistributedNotificationCenter.default().addObserver(
+            forName: .lidStayCLICommand,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                self?.handleCLICommand(notification)
+            }
+        }
+    }
+
+    private func handleCLICommand(_ notification: Notification) {
+        guard let action = notification.userInfo?["action"] as? String else {
+            return
+        }
+
+        switch action {
+        case "on":
+            if let rawDuration = notification.userInfo?["durationSeconds"] as? String,
+               let duration = TimeInterval(rawDuration),
+               duration > 0 {
+                selectDurationForCLI(seconds: duration)
+                startSession(duration: duration)
+            } else {
+                selectedDurationID = "infinite"
+                startSession(duration: nil)
+            }
+        case "off":
+            stopSession()
+        case "status":
+            writeCLIStatus()
+        default:
+            return
+        }
+    }
+
+    private func selectDurationForCLI(seconds: TimeInterval) {
+        let roundedSeconds = Int(seconds.rounded())
+        if roundedSeconds == 30 * 60 {
+            selectedDurationID = "30"
+        } else if roundedSeconds == 60 * 60 {
+            selectedDurationID = "60"
+        } else if roundedSeconds == 120 * 60 {
+            selectedDurationID = "120"
+        } else {
+            durationMinutesText = String(format: "%.0f", seconds / 60)
+            selectedDurationID = "custom"
+        }
+    }
+
+    private func writeCLIStatus() {
+        let isoFormatter = ISO8601DateFormatter()
+        let statusURL = Self.cliStatusURL
+        let status: [String: Any] = [
+            "enabled": isSleepPreventionEnabled,
+            "state": assertionState.cliValue,
+            "title": statusTitle,
+            "detail": statusDetail,
+            "duration": selectedDurationTitle,
+            "sessionEndDate": sessionEndDate.map { isoFormatter.string(from: $0) } as Any,
+            "updatedAt": isoFormatter.string(from: Date()),
+        ]
+
+        do {
+            try FileManager.default.createDirectory(
+                at: statusURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            let data = try JSONSerialization.data(withJSONObject: status, options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: statusURL, options: .atomic)
+        } catch {
+            return
+        }
+    }
+
+    private static var cliStatusURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/LidStay/status.json")
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {

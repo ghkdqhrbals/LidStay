@@ -13,6 +13,7 @@ LidStay는 macOS 메뉴바에서 Mac을 일정 시간 동안 켜두도록 제어
 - 기본값은 계속 켜두기 세션이어야 한다.
 - 전원 연결 여부와 배터리 잔량을 고려해 가능한 절전 동작을 유지해야 한다.
 - 디스플레이에는 부담을 주지 않도록 화면 켜짐 유지 기능은 제공하지 않는다.
+- 바이브코더가 터미널에서 개발 서버 실행과 함께 사용할 수 있도록 CLI를 제공한다.
 - 설치와 배포는 GitHub Release, GitHub Pages, Homebrew cask, notarized zip 흐름을 지원한다.
 
 ## 3. 비목표
@@ -27,6 +28,7 @@ LidStay는 macOS 메뉴바에서 Mac을 일정 시간 동안 켜두도록 제어
 ## 4. 대상 사용자
 
 - MacBook을 닫거나 자리를 비워도 개발 서버, 다운로드, 장시간 작업을 유지하고 싶은 사용자
+- `npm run dev`, `pnpm dev`, 로컬 서버 실행 중 Mac이 잠들지 않게 하고 싶은 바이브코더
 - 복잡한 전원 앱보다 단순한 메뉴바 제어를 원하는 사용자
 - 배터리 보호와 디스플레이 잠자기를 유지하고 싶은 사용자
 
@@ -181,6 +183,17 @@ LidStay는 macOS 메뉴바에서 Mac을 일정 시간 동안 켜두도록 제어
 - `정보...`처럼 불필요한 말줄임표는 사용하지 않는다.
 - 상태 설명은 짧게 유지하고, 이유 설명은 필요한 경우에만 제한적으로 보여준다.
 
+### 6.9 CLI
+
+- 설치 시 `lidstay` 명령어를 함께 제공한다.
+- 지원 명령:
+  - `lidstay on 2h`
+  - `lidstay on until-exit npm run dev`
+  - `lidstay off`
+  - `lidstay status`
+- `until-exit`은 지정한 프로세스가 종료되면 자동으로 `off` 명령을 보낸다.
+- CLI는 앱의 기존 power assertion 로직을 사용해야 하며 별도 전원 유지 구현을 만들지 않는다.
+
 ## 10. 배포 요구사항
 
 ### 10.1 GitHub
@@ -200,6 +213,7 @@ LidStay는 macOS 메뉴바에서 Mac을 일정 시간 동안 켜두도록 제어
   - `packaging/install-with-brew.sh`
 - cask 정의:
   - `packaging/homebrew/lidstay.rb`
+- cask는 `LidStay.app`과 `lidstay` CLI를 함께 설치한다.
 
 ### 10.4 Notarized Zip
 

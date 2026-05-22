@@ -24,7 +24,7 @@ From a cloned checkout:
 ./packaging/install-with-brew.sh
 ```
 
-This builds the app, creates a local Homebrew cask, and installs `LidStay.app`.
+This builds the app, creates a local Homebrew cask, and installs `LidStay.app` plus the `lidstay` CLI.
 
 Manual build:
 
@@ -38,6 +38,19 @@ Uninstall:
 ```bash
 brew uninstall --cask lidstay
 ```
+
+## CLI
+
+LidStay includes a terminal command for developer workflows:
+
+```bash
+lidstay on 2h
+lidstay on until-exit npm run dev
+lidstay off
+lidstay status
+```
+
+Duration values support `s`, `m`, and `h`. A plain number is treated as minutes.
 
 ## Notarized Release Build
 

@@ -169,6 +169,53 @@ func drawAnimatedMenuBarIcon(size: CGFloat, openness: CGFloat, infinite: Bool = 
     let scale = size / 44
     let t = min(1, max(0, openness))
 
+    func eyeInteriorPath() -> NSBezierPath {
+        let opennessOffset = max(0.04, t)
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: 7.2 * scale, y: (22.2 + 0.1 * opennessOffset) * scale))
+        path.curve(
+            to: NSPoint(x: 36.8 * scale, y: (22.2 + 0.1 * opennessOffset) * scale),
+            controlPoint1: NSPoint(x: 13.6 * scale, y: (15.0 + 15.1 * opennessOffset) * scale),
+            controlPoint2: NSPoint(x: 30.4 * scale, y: (15.0 + 15.1 * opennessOffset) * scale)
+        )
+        path.curve(
+            to: NSPoint(x: 7.2 * scale, y: (22.2 + 0.1 * opennessOffset) * scale),
+            controlPoint1: NSPoint(x: 29.6 * scale, y: (22.2 - 9.6 * opennessOffset) * scale),
+            controlPoint2: NSPoint(x: 14.4 * scale, y: (22.2 - 9.6 * opennessOffset) * scale)
+        )
+        path.close()
+        return path
+    }
+
+    func drawInfinityMark() {
+        let mark = NSBezierPath()
+        mark.move(to: NSPoint(x: 11.7 * scale, y: 22.0 * scale))
+        mark.curve(
+            to: NSPoint(x: 22.0 * scale, y: 22.0 * scale),
+            controlPoint1: NSPoint(x: 14.2 * scale, y: 29.6 * scale),
+            controlPoint2: NSPoint(x: 18.4 * scale, y: 29.6 * scale)
+        )
+        mark.curve(
+            to: NSPoint(x: 32.3 * scale, y: 22.0 * scale),
+            controlPoint1: NSPoint(x: 25.6 * scale, y: 14.4 * scale),
+            controlPoint2: NSPoint(x: 29.8 * scale, y: 14.4 * scale)
+        )
+        mark.curve(
+            to: NSPoint(x: 22.0 * scale, y: 22.0 * scale),
+            controlPoint1: NSPoint(x: 29.8 * scale, y: 29.6 * scale),
+            controlPoint2: NSPoint(x: 25.6 * scale, y: 29.6 * scale)
+        )
+        mark.curve(
+            to: NSPoint(x: 11.7 * scale, y: 22.0 * scale),
+            controlPoint1: NSPoint(x: 18.4 * scale, y: 14.4 * scale),
+            controlPoint2: NSPoint(x: 14.2 * scale, y: 14.4 * scale)
+        )
+        mark.lineWidth = 2.6 * scale
+        mark.lineCapStyle = .round
+        mark.lineJoinStyle = .round
+        mark.stroke()
+    }
+
     func drawLids() {
         if t <= 0.01 {
             let closedLid = NSBezierPath()
@@ -207,22 +254,11 @@ func drawAnimatedMenuBarIcon(size: CGFloat, openness: CGFloat, infinite: Bool = 
         lowerLid.stroke()
     }
 
-    if infinite {
-        let markAlpha = pow(t, 1.6)
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 16.8 * scale, weight: .heavy),
-            .foregroundColor: NSColor.labelColor.withAlphaComponent(markAlpha),
-        ]
-        let mark = NSAttributedString(string: "∞", attributes: attributes)
-        let markSize = mark.size()
-        let opticalYOffset = 0.9 * scale
-        let markRect = NSRect(
-            x: (22.0 * scale) - (markSize.width / 2),
-            y: (22.0 * scale) - (markSize.height / 2) + opticalYOffset,
-            width: markSize.width,
-            height: markSize.height
-        )
-        mark.draw(in: markRect)
+    if infinite, t > 0.18 {
+        NSGraphicsContext.saveGraphicsState()
+        eyeInteriorPath().setClip()
+        drawInfinityMark()
+        NSGraphicsContext.restoreGraphicsState()
     }
     drawLids()
 
