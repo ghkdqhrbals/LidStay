@@ -141,10 +141,23 @@ final class AppState: ObservableObject {
         }
     }
 
+    var statusLineTitle: String {
+        switch assertionState {
+        case .active:
+            return "🟢 \(statusTitle)"
+        case .batteryBlocked, .acPowerOnly:
+            return "🟠 \(statusTitle)"
+        case .failed:
+            return "🔴 \(statusTitle)"
+        case .stopped:
+            return "⚪️ \(statusTitle)"
+        }
+    }
+
     var statusDetail: String {
         switch assertionState {
         case .active:
-            return activeReasonText
+            return activeSessionText
         case .batteryBlocked:
             if allowOnBattery, autoPauseOnLowBattery, let batteryPercentage, batteryPercentage <= lowBatteryLimit {
                 return language == .korean ? "배터리 \(batteryPercentage)%라서 잠깐 중지했습니다." : "Paused because battery is \(batteryPercentage)%."
@@ -209,7 +222,7 @@ final class AppState: ObservableObject {
 
         switch assertionState {
         case .active:
-            return activeReasonText
+            return activeSessionText
         case .batteryBlocked:
             return statusDetail
         case .acPowerOnly:
@@ -316,7 +329,7 @@ final class AppState: ObservableObject {
     }
     var languageTitle: String { language == .korean ? "언어" : "Language" }
     var languageSwitchTitle: String { language == .korean ? "English" : "한국어" }
-    var aboutTitle: String { language == .korean ? "정보..." : "About..." }
+    var aboutTitle: String { language == .korean ? "정보" : "About" }
     var quitTitle: String { language == .korean ? "종료" : "Quit" }
 
     var lowBatteryLimit: Int {
@@ -547,24 +560,8 @@ final class AppState: ObservableObject {
         }
     }
 
-    private var activeReasonText: String {
-        let timeText = sessionRemainingText ?? (language == .korean ? "무제한" : "Unlimited")
-        let powerText: String
-
-        switch powerSourceState {
-        case .acPower:
-            powerText = language == .korean ? "전원 연결됨" : "plugged in"
-        case .battery:
-            if let batteryPercentage {
-                powerText = language == .korean ? "배터리 \(batteryPercentage)%" : "\(batteryPercentage)% battery"
-            } else {
-                powerText = language == .korean ? "배터리 사용 중" : "on battery"
-            }
-        case .unknown:
-            powerText = language == .korean ? "전원 상태 확인 중" : "checking power"
-        }
-
-        return language == .korean ? "직접 켜둠 · \(powerText) · \(timeText)" : "Manual · \(powerText) · \(timeText)"
+    private var activeSessionText: String {
+        sessionRemainingText ?? (language == .korean ? "무제한" : "Unlimited")
     }
 
     private var sessionRemainingText: String? {
