@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LidStay 설치</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f5f7;
+      --fg: #1d1d1f;
+      --muted: #6e6e73;
+      --panel: rgba(255, 255, 255, 0.72);
+      --line: rgba(0, 0, 0, 0.12);
+      --accent: #1677ff;
+      --code: #161617;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1e;
+        --fg: #f5f5f7;
+        --muted: #a1a1a6;
+        --panel: rgba(44, 44, 46, 0.72);
+        --line: rgba(255, 255, 255, 0.16);
+        --code: #0b0b0c;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(760px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 64px 0;
+    }
+
+    header {
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 42px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 620px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    section {
+      padding: 22px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .command {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      background: var(--code);
+    }
+
+    code {
+      color: #f5f5f7;
+      font: 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    button,
+    a.button {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 8px 12px;
+      background: var(--fg);
+      color: var(--bg);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    ol {
+      margin: 14px 0 0;
+      padding-left: 22px;
+      color: var(--muted);
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .note {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">macOS menu bar app</p>
+      <h1>LidStay 설치</h1>
+      <p class="lead">Mac을 필요한 시간 동안 켜두고, 디스플레이 잠자기는 그대로 허용하는 가벼운 메뉴바 앱입니다.</p>
+    </header>
+
+    <section>
+      <h2>Homebrew로 설치</h2>
+      <div class="panel">
+        <div class="command">
+          <code id="install-command">git clone https://github.com/ghkdqhrbals/LidStay.git && cd LidStay && ./packaging/install-with-brew.sh</code>
+          <button type="button" data-copy="install-command">복사</button>
+        </div>
+      </div>
+      <ol>
+        <li>터미널에 명령어를 붙여넣습니다.</li>
+        <li>스크립트가 앱을 빌드하고 Homebrew cask로 설치합니다.</li>
+        <li>메뉴바에서 눈꺼풀 아이콘을 눌러 시간을 선택합니다.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>업데이트</h2>
+      <div class="panel">
+        <div class="command">
+          <code id="update-command">cd LidStay && git pull && ./packaging/install-with-brew.sh</code>
+          <button type="button" data-copy="update-command">복사</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>제거</h2>
+      <div class="panel">
+        <div class="command">
+          <code id="uninstall-command">brew uninstall --cask lidstay</code>
+          <button type="button" data-copy="uninstall-command">복사</button>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="button" href="https://github.com/ghkdqhrbals/LidStay">GitHub 열기</a>
+      </div>
+      <p class="note">LidStay는 공개 macOS 전원 API만 사용합니다. 덮개를 닫았을 때의 동작은 Mac 모델과 전원 상태에 따라 달라질 수 있습니다.</p>
+    </section>
+  </main>
+
+  <script>
+    for (const button of document.querySelectorAll("[data-copy]")) {
+      button.addEventListener("click", async () => {
+        const target = document.getElementById(button.dataset.copy);
+        if (!target) return;
+        await navigator.clipboard.writeText(target.textContent);
+        const label = button.textContent;
+        button.textContent = "복사됨";
+        setTimeout(() => {
+          button.textContent = label;
+        }, 1200);
+      });
+    }
+  </script>
+</body>
+</html>

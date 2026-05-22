@@ -1,0 +1,6 @@
+.build/
+DerivedData/
+dist/
+*.xcuserdata/
+*.xcuserstate
+codex_pet_usage.py
