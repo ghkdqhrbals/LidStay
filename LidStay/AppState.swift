@@ -142,16 +142,7 @@ final class AppState: ObservableObject {
     }
 
     var statusLineTitle: String {
-        switch assertionState {
-        case .active:
-            return "🟢 \(statusTitle)"
-        case .batteryBlocked, .acPowerOnly:
-            return "🟠 \(statusTitle)"
-        case .failed:
-            return "🔴 \(statusTitle)"
-        case .stopped:
-            return "⚪️ \(statusTitle)"
-        }
+        statusTitle
     }
 
     var statusDetail: String {

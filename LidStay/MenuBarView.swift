@@ -106,6 +106,24 @@ struct MenuBarView: View {
     }
 
     private var statusItem: some View {
-        Text("\(appState.statusLineTitle) · \(appState.sessionSummaryText)")
+        HStack(spacing: 6) {
+            Text("●")
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(statusColor)
+            Text("\(appState.statusLineTitle) · \(appState.sessionSummaryText)")
+        }
+    }
+
+    private var statusColor: Color {
+        switch appState.assertionState {
+        case .active:
+            return .green
+        case .batteryBlocked, .acPowerOnly:
+            return .orange
+        case .failed:
+            return .red
+        case .stopped:
+            return .secondary
+        }
     }
 }
