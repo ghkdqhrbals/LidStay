@@ -145,6 +145,19 @@ final class AppState: ObservableObject {
         statusTitle
     }
 
+    var statusDotImageName: String {
+        switch assertionState {
+        case .active:
+            return "StatusDotGreen"
+        case .batteryBlocked, .acPowerOnly:
+            return "StatusDotOrange"
+        case .failed:
+            return "StatusDotRed"
+        case .stopped:
+            return "StatusDotGray"
+        }
+    }
+
     var statusDetail: String {
         switch assertionState {
         case .active:
