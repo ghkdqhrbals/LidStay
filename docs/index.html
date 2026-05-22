@@ -120,6 +120,18 @@
       white-space: nowrap;
     }
 
+    a.primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 11px 16px;
+      border-color: transparent;
+      background: var(--accent);
+      color: white;
+      font-size: 16px;
+    }
+
     ol {
       margin: 14px 0 0;
       padding-left: 22px;
@@ -150,10 +162,24 @@
       <p class="eyebrow">macOS menu bar app</p>
       <h1>LidStay 설치</h1>
       <p class="lead">Mac을 필요한 시간 동안 켜두고, 디스플레이 잠자기는 그대로 허용하는 가벼운 메뉴바 앱입니다.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/ghkdqhrbals/LidStay/releases/latest/download/LidStay.zip">LidStay 다운로드</a>
+        <a class="button" href="https://github.com/ghkdqhrbals/LidStay">GitHub 열기</a>
+      </div>
     </header>
 
     <section>
-      <h2>Homebrew로 설치</h2>
+      <h2>가장 쉬운 설치</h2>
+      <ol>
+        <li>`LidStay 다운로드`를 누릅니다.</li>
+        <li>압축을 풀고 `LidStay.app`을 Applications 폴더로 옮깁니다.</li>
+        <li>앱을 실행한 뒤 메뉴바의 눈꺼풀 아이콘을 누릅니다.</li>
+      </ol>
+      <p class="note">처음 실행할 때 macOS 보안 경고가 나오면 Finder에서 앱을 우클릭한 뒤 `열기`를 선택하세요.</p>
+    </section>
+
+    <section>
+      <h2>터미널로 설치</h2>
       <div class="panel">
         <div class="command">
           <code id="install-command">git clone https://github.com/ghkdqhrbals/LidStay.git && cd LidStay && ./packaging/install-with-brew.sh</code>
@@ -163,7 +189,6 @@
       <ol>
         <li>터미널에 명령어를 붙여넣습니다.</li>
         <li>스크립트가 앱을 빌드하고 Homebrew cask로 설치합니다.</li>
-        <li>메뉴바에서 눈꺼풀 아이콘을 눌러 시간을 선택합니다.</li>
       </ol>
     </section>
 

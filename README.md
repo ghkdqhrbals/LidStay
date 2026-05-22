@@ -4,6 +4,16 @@ LidStay is a native macOS menu bar app for keeping your Mac on for a selected ti
 
 It uses public macOS power APIs only. It does not use private APIs, kernel extensions, LaunchDaemons, or privileged helpers.
 
+## Download
+
+Download the latest app zip:
+
+```text
+https://github.com/ghkdqhrbals/LidStay/releases/latest/download/LidStay.zip
+```
+
+Unzip it, move `LidStay.app` to Applications, and open it. If macOS shows a security warning on first launch, right-click the app in Finder and choose `Open`.
+
 ## Install With Homebrew
 
 From a cloned checkout:
@@ -35,7 +45,7 @@ The user-facing install page lives at:
 docs/index.html
 ```
 
-When GitHub Pages is enabled for the `docs` folder, it gives users a simple Brew install interface.
+When GitHub Pages is enabled for the `docs` folder, it gives users a simple download page with Brew as an advanced option.
 
 ## Build
 
