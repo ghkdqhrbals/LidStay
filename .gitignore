@@ -1,6 +1,7 @@
 .build/
 DerivedData/
-dist/
+dist/*
+!dist/.gitkeep
 *.xcuserdata/
 *.xcuserstate
 codex_pet_usage.py

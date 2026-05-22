@@ -14,6 +14,8 @@ https://github.com/ghkdqhrbals/LidStay/releases/latest/download/LidStay.zip
 
 Unzip it, move `LidStay.app` to Applications, and open it. If macOS shows a security warning on first launch, right-click the app in Finder and choose `Open`.
 
+For a normal double-click install experience outside the Mac App Store, the app must be signed with a Developer ID Application certificate and notarized by Apple.
+
 ## Install With Homebrew
 
 From a cloned checkout:
@@ -36,6 +38,24 @@ Uninstall:
 ```bash
 brew uninstall --cask lidstay
 ```
+
+## Notarized Release Build
+
+Store a notarytool profile once:
+
+```bash
+xcrun notarytool store-credentials lidstay-notary --apple-id "you@example.com" --team-id "TEAMID" --password "app-specific-password"
+```
+
+Build, sign, notarize, staple, and package:
+
+```bash
+DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)" \
+NOTARYTOOL_PROFILE="lidstay-notary" \
+./packaging/build-notarized-zip.sh
+```
+
+Upload the generated `dist/LidStay.zip` to a GitHub Release.
 
 ## Install Page
 
