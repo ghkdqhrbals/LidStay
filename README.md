@@ -67,6 +67,14 @@ docs/index.html
 
 When GitHub Pages is enabled for the `docs` folder, it gives users a simple download page with Brew as an advanced option.
 
+## Product Requirements
+
+The current product definition and implementation requirements are documented in:
+
+```text
+docs/PRD.md
+```
+
 ## Build
 
 ```bash
