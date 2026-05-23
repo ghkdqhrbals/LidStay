@@ -3,5 +3,7 @@ DerivedData/
 dist/*
 !dist/.gitkeep
 *.xcuserdata/
+xcuserdata/
+*.xcuserdatad/
 *.xcuserstate
 codex_pet_usage.py

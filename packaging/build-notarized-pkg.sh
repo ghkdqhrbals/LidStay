@@ -4,17 +4,25 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DERIVED_DATA="$ROOT_DIR/.build/DerivedData"
 DIST_DIR="$ROOT_DIR/dist"
+PKG_ROOT="$DIST_DIR/pkg-root"
 APP_PATH="$DERIVED_DATA/Build/Products/Release/LidStay.app"
-ZIP_PATH="$DIST_DIR/LidStay.zip"
-PACKAGE_DIR="$DIST_DIR/package"
+PKG_PATH="$DIST_DIR/LidStay.pkg"
+VERSION="${LIDSTAY_VERSION:-1.0}"
 SPARKLE_FEED_URL="${SPARKLE_FEED_URL:-https://github.com/ghkdqhrbals/LidStay/releases/latest/download/appcast.xml}"
 SPARKLE_PUBLIC_ED_KEY="${SPARKLE_PUBLIC_ED_KEY:-SFBDrWBr+kRxZOiUM1xHY+XgbC8vqAZ9fcLadJ9Trmw=}"
 DEVELOPER_ID_APPLICATION="${DEVELOPER_ID_APPLICATION:-Developer ID Application: gyumin hwangbo (4CL25TC734)}"
+DEVELOPER_ID_INSTALLER="${DEVELOPER_ID_INSTALLER:-Developer ID Installer: gyumin hwangbo (4CL25TC734)}"
 NOTARYTOOL_PROFILE="${NOTARYTOOL_PROFILE:-lidstay-notary}"
 
 if ! /usr/bin/security find-identity -v -p codesigning | /usr/bin/grep -Fq "\"$DEVELOPER_ID_APPLICATION\""; then
   echo "Missing signing identity: $DEVELOPER_ID_APPLICATION" >&2
   echo "Create it in Xcode > Settings > Accounts > Manage Certificates > Developer ID Application." >&2
+  exit 1
+fi
+
+if ! /usr/bin/security find-identity -v | /usr/bin/grep -Fq "\"$DEVELOPER_ID_INSTALLER\""; then
+  echo "Missing signing identity: $DEVELOPER_ID_INSTALLER" >&2
+  echo "Create it in Xcode > Settings > Accounts > Manage Certificates > Developer ID Installer." >&2
   exit 1
 fi
 
@@ -41,19 +49,26 @@ codesign \
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 spctl --assess --type execute --verbose "$APP_PATH" || true
 
-rm -rf "$PACKAGE_DIR"
-mkdir -p "$PACKAGE_DIR"
-COPYFILE_DISABLE=1 ditto --norsrc "$APP_PATH" "$PACKAGE_DIR/LidStay.app"
-install -m 755 "$ROOT_DIR/CLI/lidstay" "$PACKAGE_DIR/lidstay"
-find "$PACKAGE_DIR" -name '._*' -delete
-COPYFILE_DISABLE=1 ditto --norsrc -c -k "$PACKAGE_DIR" "$ZIP_PATH"
-xcrun notarytool submit "$ZIP_PATH" --keychain-profile "$NOTARYTOOL_PROFILE" --wait
-xcrun stapler staple "$APP_PATH"
-xcrun stapler validate "$APP_PATH"
+rm -rf "$PKG_ROOT" "$PKG_PATH"
+mkdir -p "$PKG_ROOT/Applications" "$PKG_ROOT/usr/local/bin"
 
-COPYFILE_DISABLE=1 ditto --norsrc "$APP_PATH" "$PACKAGE_DIR/LidStay.app"
-install -m 755 "$ROOT_DIR/CLI/lidstay" "$PACKAGE_DIR/lidstay"
-find "$PACKAGE_DIR" -name '._*' -delete
-COPYFILE_DISABLE=1 ditto --norsrc -c -k "$PACKAGE_DIR" "$ZIP_PATH"
+COPYFILE_DISABLE=1 ditto --norsrc --noextattr --noqtn --noacl "$APP_PATH" "$PKG_ROOT/Applications/LidStay.app"
+install -m 755 "$ROOT_DIR/CLI/lidstay" "$PKG_ROOT/usr/local/bin/lidstay"
+find "$PKG_ROOT" -name '._*' -delete
+xattr -cr "$PKG_ROOT"
 
-echo "$ZIP_PATH"
+COPYFILE_DISABLE=1 pkgbuild \
+  --root "$PKG_ROOT" \
+  --identifier "com.ghkdqhrbals.LidStay.pkg" \
+  --version "$VERSION" \
+  --install-location / \
+  --sign "$DEVELOPER_ID_INSTALLER" \
+  "$PKG_PATH"
+
+pkgutil --check-signature "$PKG_PATH"
+spctl --assess --type install --verbose "$PKG_PATH" || true
+xcrun notarytool submit "$PKG_PATH" --keychain-profile "$NOTARYTOOL_PROFILE" --wait
+xcrun stapler staple "$PKG_PATH"
+xcrun stapler validate "$PKG_PATH"
+
+echo "$PKG_PATH"

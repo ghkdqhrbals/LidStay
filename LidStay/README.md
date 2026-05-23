@@ -14,6 +14,8 @@ The built app is created at:
 .build/DerivedData/Build/Products/Debug/LidStay.app
 ```
 
+The app bundle includes the `lidstay` CLI. On first launch, LidStay installs or updates the CLI at `/usr/local/bin/lidstay`; macOS may ask for an administrator password if needed.
+
 ## Behavior
 
 - `Mac 켜두기` starts or stops the current session.
@@ -39,6 +41,17 @@ One-command local install:
 ```
 
 This builds `dist/LidStay.zip`, creates a local Homebrew tap, writes the cask, and installs the app plus the `lidstay` CLI.
+Homebrew links the CLI automatically through the cask `binary "lidstay"` stanza.
+
+## Installer Package
+
+Build a local `.pkg` installer:
+
+```bash
+./packaging/build-pkg.sh
+```
+
+The pkg installs `LidStay.app` into `/Applications` and `lidstay` into `/usr/local/bin`.
 
 Manual package build:
 
@@ -49,7 +62,7 @@ Manual package build:
 Manual install from the generated local tap cask:
 
 ```bash
-brew reinstall --cask --no-quarantine lidstay/local/lidstay
+brew reinstall --cask lidstay/local/lidstay
 ```
 
 Uninstall:
@@ -68,3 +81,30 @@ lidstay status
 ```
 
 Duration values support `s`, `m`, and `h`. A plain number is treated as minutes.
+
+## Automatic Updates
+
+LidStay uses Sparkle 2 for automatic updates in direct distribution builds.
+
+The Sparkle EdDSA public key is already embedded in the project. The private key is stored in this Mac's login Keychain. To rotate keys later, run:
+
+```bash
+xcodebuild -resolvePackageDependencies -project LidStay.xcodeproj -scheme LidStay -derivedDataPath .build/DerivedData
+.build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys
+```
+
+Build a notarized update-enabled zip:
+
+```bash
+./packaging/build-notarized-zip.sh
+```
+
+Generate the appcast:
+
+```bash
+RELEASE_TAG="v1.0" ./packaging/generate-appcast.sh
+```
+
+## GitHub Actions Release
+
+`.github/workflows/release.yml` builds notarized zip/pkg artifacts, generates Sparkle `appcast.xml`, and uploads them to the GitHub Release when a `v*` tag is pushed.

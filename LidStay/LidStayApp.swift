@@ -4,11 +4,13 @@ import SwiftUI
 @main
 struct LidStayApp: App {
     @StateObject private var appState = AppState()
+    @StateObject private var updateController = UpdateController.shared
 
     var body: some Scene {
         MenuBarExtra {
             MenuBarView()
                 .environmentObject(appState)
+                .environmentObject(updateController)
                 .onAppear {
                     NSApp.setActivationPolicy(.accessory)
                 }

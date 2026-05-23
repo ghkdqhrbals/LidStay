@@ -38,4 +38,4 @@ cask "lidstay" do
 end
 CASK
 
-brew reinstall --cask --no-quarantine "$TAP_NAME/lidstay"
+brew reinstall --cask "$TAP_NAME/lidstay"

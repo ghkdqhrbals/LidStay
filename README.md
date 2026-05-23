@@ -6,13 +6,21 @@ It uses public macOS power APIs only. It does not use private APIs, kernel exten
 
 ## Download
 
-Download the latest app zip:
+Recommended download:
 
 ```text
 https://github.com/ghkdqhrbals/LidStay/releases/latest/download/LidStay.zip
 ```
 
-Unzip it, move `LidStay.app` to Applications, and open it. If macOS shows a security warning on first launch, right-click the app in Finder and choose `Open`.
+Unzip it, move `LidStay.app` to Applications, and open it. On first launch, LidStay installs or updates `lidstay` into `/usr/local/bin`. macOS may ask for an administrator password if that folder is not writable.
+
+Installer package:
+
+```text
+https://github.com/ghkdqhrbals/LidStay/releases/latest/download/LidStay.pkg
+```
+
+Open `LidStay.pkg` to install `LidStay.app` into `/Applications` and `lidstay` into `/usr/local/bin`.
 
 For a normal double-click install experience outside the Mac App Store, the app must be signed with a Developer ID Application certificate and notarized by Apple.
 
@@ -26,11 +34,13 @@ From a cloned checkout:
 
 This builds the app, creates a local Homebrew cask, and installs `LidStay.app` plus the `lidstay` CLI.
 
+Homebrew links the CLI automatically through the cask `binary "lidstay"` stanza.
+
 Manual build:
 
 ```bash
 ./packaging/build-cask-zip.sh
-brew reinstall --cask --no-quarantine lidstay/local/lidstay
+brew reinstall --cask lidstay/local/lidstay
 ```
 
 Uninstall:
@@ -52,6 +62,35 @@ lidstay status
 
 Duration values support `s`, `m`, and `h`. A plain number is treated as minutes.
 
+## Automatic Updates
+
+LidStay uses Sparkle 2 for direct-distribution updates outside the Mac App Store.
+
+The Sparkle EdDSA public key is already embedded in the project. The private key is stored in this Mac's login Keychain. To rotate keys later, run:
+
+```bash
+xcodebuild -resolvePackageDependencies -project LidStay.xcodeproj -scheme LidStay -derivedDataPath .build/DerivedData
+.build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys
+```
+
+Build a notarized update-enabled zip:
+
+```bash
+./packaging/build-notarized-zip.sh
+```
+
+Generate the Sparkle appcast after the notarized zip is built:
+
+```bash
+RELEASE_TAG="v1.0" ./packaging/generate-appcast.sh
+```
+
+Upload `dist/LidStay.zip`, `dist/updates/LidStay-<version>-<build>.zip`, and `dist/updates/appcast.xml` to the GitHub Release. The app reads updates from:
+
+```text
+https://github.com/ghkdqhrbals/LidStay/releases/latest/download/appcast.xml
+```
+
 ## Notarized Release Build
 
 Store a notarytool profile once:
@@ -60,15 +99,68 @@ Store a notarytool profile once:
 xcrun notarytool store-credentials lidstay-notary --apple-id "you@example.com" --team-id "TEAMID" --password "app-specific-password"
 ```
 
-Build, sign, notarize, staple, and package:
+Build, sign, notarize, staple, and package the app-only zip:
 
 ```bash
-DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)" \
-NOTARYTOOL_PROFILE="lidstay-notary" \
 ./packaging/build-notarized-zip.sh
 ```
 
-Upload the generated `dist/LidStay.zip` to a GitHub Release.
+Build, sign, notarize, staple, and package the installer that also installs the CLI:
+
+```bash
+./packaging/build-notarized-pkg.sh
+```
+
+The release scripts default to:
+
+```text
+Developer ID Application: gyumin hwangbo (4CL25TC734)
+Developer ID Installer: gyumin hwangbo (4CL25TC734)
+notarytool profile: lidstay-notary
+```
+
+Upload the generated `dist/LidStay.pkg` and `dist/LidStay.zip` to a GitHub Release.
+
+## GitHub Actions Release
+
+Tagged releases are built automatically by `.github/workflows/release.yml`.
+
+The workflow needs these GitHub repository secrets for the primary zip release and Sparkle automatic updates:
+
+```text
+APP_STORE_CONNECT_API_KEY_BASE64
+APP_STORE_CONNECT_KEY_ID
+APP_STORE_CONNECT_ISSUER_ID
+DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64
+DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD
+SPARKLE_PRIVATE_ED_KEY
+```
+
+These two secrets are optional. Add them only if you also want the workflow to publish `LidStay.pkg`:
+
+```text
+DEVELOPER_ID_INSTALLER_CERTIFICATE_BASE64
+DEVELOPER_ID_INSTALLER_CERTIFICATE_PASSWORD
+```
+
+Use these local commands to prepare the secret values:
+
+```bash
+base64 -i /Users/ghkdqhrbals/keys/AuthKey_QJW24W7F76.p8 | pbcopy
+.build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys -x /tmp/lidstay-sparkle-private-key
+pbcopy < /tmp/lidstay-sparkle-private-key
+```
+
+Export the Developer ID Application certificate as a `.p12` file from Keychain Access, then base64 it and store the value in the matching secret. Export the Developer ID Installer certificate only if you also want pkg publishing.
+
+`KEYCHAIN_PASSWORD` is generated inside GitHub Actions at runtime and is not a repository secret.
+
+To publish a release, push a tag:
+
+```bash
+git tag v1.0
+git push origin v1.0
+```
 
 ## Install Page
 

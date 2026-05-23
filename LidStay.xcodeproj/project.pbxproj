@@ -18,6 +18,10 @@
 		8A1C3CA02C6A4A13008B1010 /* OptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C9E2C6A4A13008B1010 /* OptionsView.swift */; };
 		8A1C3CA12C6A4A13008B1010 /* OptionsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C9F2C6A4A13008B1010 /* OptionsWindowController.swift */; };
 		8A1C3CA32C6A4A14008B1010 /* CLICommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3CA22C6A4A14008B1010 /* CLICommand.swift */; };
+		8A1C3CA52C6A4A15008B1010 /* CLIInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3CA42C6A4A15008B1010 /* CLIInstaller.swift */; };
+		8A1C3CA72C6A4A15008B1010 /* lidstay in Resources */ = {isa = PBXBuildFile; fileRef = 8A1C3CA62C6A4A15008B1010 /* lidstay */; };
+		8A1C3CAA2C6A4A16008B1010 /* UpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3CA92C6A4A16008B1010 /* UpdateController.swift */; };
+		8A1C3CAD2C6A4A16008B1010 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 8A1C3CAC2C6A4A16008B1010 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +37,10 @@
 		8A1C3C9E2C6A4A13008B1010 /* OptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptionsView.swift; sourceTree = "<group>"; };
 		8A1C3C9F2C6A4A13008B1010 /* OptionsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptionsWindowController.swift; sourceTree = "<group>"; };
 		8A1C3CA22C6A4A14008B1010 /* CLICommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLICommand.swift; sourceTree = "<group>"; };
+		8A1C3CA42C6A4A15008B1010 /* CLIInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIInstaller.swift; sourceTree = "<group>"; };
+		8A1C3CA62C6A4A15008B1010 /* lidstay */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = lidstay; sourceTree = "<group>"; };
+		8A1C3CA92C6A4A16008B1010 /* UpdateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateController.swift; sourceTree = "<group>"; };
+		8A1C3CAE2C6A4A16008B1010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,6 +51,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A1C3CAD2C6A4A16008B1010 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,6 +62,7 @@
 			isa = PBXGroup;
 			children = (
 				8A1C3C752C6A4A11008B1010 /* LidStay */,
+				8A1C3CA82C6A4A15008B1010 /* CLI */,
 				8A1C3C732C6A4A10008B1010 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -74,13 +84,24 @@
 				8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */,
 				8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */,
 				8A1C3CA22C6A4A14008B1010 /* CLICommand.swift */,
+				8A1C3CA42C6A4A15008B1010 /* CLIInstaller.swift */,
+				8A1C3CA92C6A4A16008B1010 /* UpdateController.swift */,
 				8A1C3C9E2C6A4A13008B1010 /* OptionsView.swift */,
 				8A1C3C9F2C6A4A13008B1010 /* OptionsWindowController.swift */,
 				8A1C3C8E2C6A4A12008B1010 /* AboutView.swift */,
 				8A1C3C8F2C6A4A12008B1010 /* AboutWindowController.swift */,
+				8A1C3CAE2C6A4A16008B1010 /* Info.plist */,
 				8A1C3C902C6A4A12008B1010 /* Assets.xcassets */,
 			);
 			path = LidStay;
+			sourceTree = "<group>";
+		};
+		8A1C3CA82C6A4A15008B1010 /* CLI */ = {
+			isa = PBXGroup;
+			children = (
+				8A1C3CA62C6A4A15008B1010 /* lidstay */,
+			);
+			path = CLI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -100,6 +121,7 @@
 			);
 			name = LidStay;
 			packageProductDependencies = (
+				8A1C3CAC2C6A4A16008B1010 /* Sparkle */,
 			);
 			productName = LidStay;
 			productReference = 8A1C3C722C6A4A10008B1010 /* LidStay.app */;
@@ -129,6 +151,9 @@
 			);
 			mainGroup = 8A1C3C682C6A4A10008B1010;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8A1C3CAB2C6A4A16008B1010 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8A1C3C732C6A4A10008B1010 /* Products */;
 			projectDirPath = "";
@@ -145,6 +170,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8A1C3C932C6A4A12008B1010 /* Assets.xcassets in Resources */,
+				8A1C3CA72C6A4A15008B1010 /* lidstay in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -163,6 +189,8 @@
 				8A1C3C912C6A4A12008B1010 /* AboutView.swift in Sources */,
 				8A1C3C922C6A4A12008B1010 /* AboutWindowController.swift in Sources */,
 				8A1C3CA32C6A4A14008B1010 /* CLICommand.swift in Sources */,
+				8A1C3CA52C6A4A15008B1010 /* CLIInstaller.swift in Sources */,
+				8A1C3CAA2C6A4A16008B1010 /* UpdateController.swift in Sources */,
 				8A1C3CA02C6A4A13008B1010 /* OptionsView.swift in Sources */,
 				8A1C3CA12C6A4A13008B1010 /* OptionsWindowController.swift in Sources */,
 			);
@@ -299,11 +327,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = LidStay;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LidStay/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -312,6 +337,8 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ghkdqhrbals.LidStay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SPARKLE_FEED_URL = "https://github.com/ghkdqhrbals/LidStay/releases/latest/download/appcast.xml";
+				SPARKLE_PUBLIC_ED_KEY = "SFBDrWBr+kRxZOiUM1xHY+XgbC8vqAZ9fcLadJ9Trmw=";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -326,11 +353,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4CL25TC734;
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = LidStay;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LidStay/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -339,6 +363,8 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ghkdqhrbals.LidStay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SPARKLE_FEED_URL = "https://github.com/ghkdqhrbals/LidStay/releases/latest/download/appcast.xml";
+				SPARKLE_PUBLIC_ED_KEY = "SFBDrWBr+kRxZOiUM1xHY+XgbC8vqAZ9fcLadJ9Trmw=";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -366,6 +392,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8A1C3CAB2C6A4A16008B1010 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8A1C3CAC2C6A4A16008B1010 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8A1C3CAB2C6A4A16008B1010 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8A1C3C692C6A4A10008B1010 /* Project object */;
 }

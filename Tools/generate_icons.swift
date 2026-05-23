@@ -188,29 +188,37 @@ func drawAnimatedMenuBarIcon(size: CGFloat, openness: CGFloat, infinite: Bool = 
     }
 
     func drawInfinityMark() {
+        let markScale: CGFloat = 0.92
+        func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
+            NSPoint(
+                x: (22.0 + (x - 22.0) * markScale) * scale,
+                y: (22.0 + (y - 22.0) * markScale) * scale
+            )
+        }
+
         let mark = NSBezierPath()
-        mark.move(to: NSPoint(x: 11.7 * scale, y: 22.0 * scale))
+        mark.move(to: point(11.7, 22.0))
         mark.curve(
-            to: NSPoint(x: 22.0 * scale, y: 22.0 * scale),
-            controlPoint1: NSPoint(x: 14.2 * scale, y: 29.6 * scale),
-            controlPoint2: NSPoint(x: 18.4 * scale, y: 29.6 * scale)
+            to: point(22.0, 22.0),
+            controlPoint1: point(14.2, 29.6),
+            controlPoint2: point(18.4, 29.6)
         )
         mark.curve(
-            to: NSPoint(x: 32.3 * scale, y: 22.0 * scale),
-            controlPoint1: NSPoint(x: 25.6 * scale, y: 14.4 * scale),
-            controlPoint2: NSPoint(x: 29.8 * scale, y: 14.4 * scale)
+            to: point(32.3, 22.0),
+            controlPoint1: point(25.6, 14.4),
+            controlPoint2: point(29.8, 14.4)
         )
         mark.curve(
-            to: NSPoint(x: 22.0 * scale, y: 22.0 * scale),
-            controlPoint1: NSPoint(x: 29.8 * scale, y: 29.6 * scale),
-            controlPoint2: NSPoint(x: 25.6 * scale, y: 29.6 * scale)
+            to: point(22.0, 22.0),
+            controlPoint1: point(29.8, 29.6),
+            controlPoint2: point(25.6, 29.6)
         )
         mark.curve(
-            to: NSPoint(x: 11.7 * scale, y: 22.0 * scale),
-            controlPoint1: NSPoint(x: 18.4 * scale, y: 14.4 * scale),
-            controlPoint2: NSPoint(x: 14.2 * scale, y: 14.4 * scale)
+            to: point(11.7, 22.0),
+            controlPoint1: point(18.4, 14.4),
+            controlPoint2: point(14.2, 14.4)
         )
-        mark.lineWidth = 2.6 * scale
+        mark.lineWidth = 2.45 * scale
         mark.lineCapStyle = .round
         mark.lineJoinStyle = .round
         mark.stroke()

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var updateController: UpdateController
 
     var body: some View {
         statusItem
@@ -48,6 +49,11 @@ struct MenuBarView: View {
         }
 
         Divider()
+
+        Button(appState.checkForUpdatesTitle) {
+            updateController.checkForUpdates()
+        }
+        .disabled(updateController.isConfigured && !updateController.canCheckForUpdates)
 
         Button(appState.aboutTitle) {
             appState.showAbout()

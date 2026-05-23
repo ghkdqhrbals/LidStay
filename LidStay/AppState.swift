@@ -117,6 +117,8 @@ final class AppState: ObservableObject {
         self.powerSourceState = powerSourceMonitor.currentSnapshot.state
         self.batteryPercentage = powerSourceMonitor.currentSnapshot.batteryPercentage
 
+        CLIInstaller.installBundledCLIIfNeeded()
+
         powerSourceMonitor.onChange = { [weak self] snapshot in
             Task { @MainActor in
                 self?.powerSourceState = snapshot.state
@@ -319,14 +321,14 @@ final class AppState: ObservableObject {
     var lowBatteryPromptTitle: String { language == .korean ? "배터리 자동 중지" : "Battery Pause" }
     var lowBatteryPromptMessage: String { language == .korean ? "몇 퍼센트 이하에서 잠깐 중지할지 입력하세요." : "Enter the battery percentage where LidStay should pause." }
     var percentPlaceholder: String { language == .korean ? "퍼센트" : "Percent" }
-    var allowBatteryTitle: String { language == .korean ? "배터리 조건 허용" : "Allow battery condition" }
-    var chargingOnlyTitle: String { language == .korean ? "전원 연결 중에만 허용" : "Allow only while power adapter is connected" }
+    var allowBatteryTitle: String { language == .korean ? "배터리 포함" : "Include battery" }
+    var chargingOnlyTitle: String { language == .korean ? "전원 연결 시" : "Power adapter" }
     private var batteryPowerModeTitle: String {
         if autoPauseOnLowBattery {
-            return language == .korean ? "배터리 \(lowBatteryLimit)% 이상일 때 허용" : "Allow while battery is above \(lowBatteryLimit)%"
+            return language == .korean ? "배터리 \(lowBatteryLimit)% 이상" : "Battery \(lowBatteryLimit)%+"
         }
 
-        return language == .korean ? "배터리 제한 없이 허용" : "Allow without battery limit"
+        return language == .korean ? "배터리 포함" : "Include battery"
     }
 
     var powerModeStatusTitle: String {
@@ -362,6 +364,7 @@ final class AppState: ObservableObject {
     var languageTitle: String { language == .korean ? "언어" : "Language" }
     var languageSwitchTitle: String { language == .korean ? "English" : "한국어" }
     var optionsTitle: String { language == .korean ? "옵션" : "Options" }
+    var checkForUpdatesTitle: String { language == .korean ? "업데이트 확인" : "Check for Updates" }
     var aboutTitle: String { language == .korean ? "정보" : "About" }
     var quitTitle: String { language == .korean ? "종료" : "Quit" }
 
