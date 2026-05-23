@@ -602,12 +602,19 @@ final class AppState: ObservableObject {
         }
     }
 
-    func setSleepPreventionEnabled(_ enabled: Bool) {
+    func setSleepPreventionEnabled(_ enabled: Bool, animated: Bool = true) {
         guard enabled != isSleepPreventionEnabled else {
             return
         }
 
-        animateMenuBarIcon(opening: enabled, infinite: selectedDurationID == "infinite")
+        if animated {
+            animateMenuBarIcon(opening: enabled, infinite: selectedDurationID == "infinite")
+        } else {
+            stopMenuBarMotion()
+            iconAnimationTask?.cancel()
+            iconAnimationTask = nil
+            menuBarIconAnimationName = nil
+        }
         isSleepPreventionEnabled = enabled
     }
 

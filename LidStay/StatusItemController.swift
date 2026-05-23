@@ -53,7 +53,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             return
         }
 
-        appState.setSleepPreventionEnabled(newValue)
+        appState.setSleepPreventionEnabled(newValue, animated: newValue)
     }
 
     private func showMenu() {
