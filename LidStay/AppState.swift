@@ -103,6 +103,8 @@ final class AppState: ObservableObject {
     private let notificationController = AppNotificationController.shared
     private var sessionTimer: Timer?
     private var iconAnimationTask: Task<Void, Never>?
+    private var iconMotionTask: Task<Void, Never>?
+    private var iconMotionInfinite: Bool?
     private var cliCommandObserver: NSObjectProtocol?
     @Published private(set) var notificationAuthorizationStatus: UNAuthorizationStatus = .notDetermined
 
@@ -581,6 +583,8 @@ final class AppState: ObservableObject {
 
     func shutdown() {
         sessionTimer?.invalidate()
+        stopMenuBarMotion()
+        iconAnimationTask?.cancel()
         assertionController.release()
         powerSourceMonitor.stop()
         if let cliCommandObserver {
@@ -799,6 +803,7 @@ final class AppState: ObservableObject {
 
     private func updateAssertionState(_ newState: PowerAssertionState, previousState: PowerAssertionState) {
         assertionState = newState
+        syncMenuBarMotion()
 
         guard isSleepPreventionEnabled, previousState == .active, newState != .active else {
             return
@@ -872,6 +877,7 @@ final class AppState: ObservableObject {
     }
 
     private func animateMenuBarIcon(opening: Bool, infinite: Bool) {
+        stopMenuBarMotion()
         iconAnimationTask?.cancel()
 
         let frameIndexes = opening ? Array(0...4) : Array((0...4).reversed())
@@ -889,6 +895,56 @@ final class AppState: ObservableObject {
             }
             try? await Task.sleep(nanoseconds: 42_000_000)
             self?.menuBarIconAnimationName = nil
+            self?.iconAnimationTask = nil
+            self?.syncMenuBarMotion()
+        }
+    }
+
+    private func syncMenuBarMotion() {
+        guard isSleepPreventionEnabled, assertionState == .active else {
+            stopMenuBarMotion()
+            return
+        }
+
+        startMenuBarMotion(infinite: selectedDurationID == "infinite")
+    }
+
+    private func startMenuBarMotion(infinite: Bool) {
+        guard iconAnimationTask == nil else {
+            return
+        }
+
+        if iconMotionTask != nil, iconMotionInfinite == infinite {
+            return
+        }
+
+        iconMotionTask?.cancel()
+        iconMotionInfinite = infinite
+        let prefix = infinite ? "MenuBarIconInfiniteFrame" : "MenuBarIconFrame"
+        let forwardFrames = (0...4).map { "\(prefix)\($0)" }
+        let returnFrames = (1...3).reversed().map { "\(prefix)\($0)" }
+        let frames = forwardFrames + returnFrames
+
+        iconMotionTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                for frame in frames {
+                    guard !Task.isCancelled else {
+                        return
+                    }
+                    self?.menuBarIconAnimationName = frame
+                    try? await Task.sleep(nanoseconds: 95_000_000)
+                }
+                try? await Task.sleep(nanoseconds: 520_000_000)
+            }
+        }
+    }
+
+    private func stopMenuBarMotion() {
+        iconMotionTask?.cancel()
+        iconMotionTask = nil
+        iconMotionInfinite = nil
+        if iconAnimationTask == nil {
+            menuBarIconAnimationName = nil
         }
     }
 

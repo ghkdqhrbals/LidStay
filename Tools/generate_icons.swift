@@ -275,6 +275,322 @@ func drawMenuBarIcon(size: CGFloat, active: Bool, infinite: Bool = false) -> NSB
     drawAnimatedMenuBarIcon(size: size, openness: active ? 1 : 0, infinite: infinite)
 }
 
+func drawRabbitAppIcon(size: CGFloat) -> NSBitmapImageRep {
+    let pixels = Int(size)
+    guard let bitmap = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: pixels,
+        pixelsHigh: pixels,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else {
+        fatalError("Failed to create bitmap")
+    }
+
+    bitmap.size = NSSize(width: size, height: size)
+
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+
+    let rect = NSRect(x: 0, y: 0, width: size, height: size)
+    NSColor.clear.setFill()
+    rect.fill()
+
+    let scale = size / 1024
+    NSColor(calibratedRed: 0.07, green: 0.08, blue: 0.09, alpha: 1).setFill()
+    NSBezierPath(roundedRect: rect, xRadius: 228 * scale, yRadius: 228 * scale).fill()
+
+    let rabbit = NSBezierPath()
+    rabbit.appendOval(in: NSRect(x: 284 * scale, y: 250 * scale, width: 456 * scale, height: 420 * scale))
+    rabbit.appendOval(in: NSRect(x: 345 * scale, y: 520 * scale, width: 334 * scale, height: 270 * scale))
+    rabbit.appendOval(in: NSRect(x: 342 * scale, y: 690 * scale, width: 104 * scale, height: 238 * scale))
+    rabbit.appendOval(in: NSRect(x: 578 * scale, y: 690 * scale, width: 104 * scale, height: 238 * scale))
+    rabbit.appendOval(in: NSRect(x: 236 * scale, y: 340 * scale, width: 146 * scale, height: 130 * scale))
+    NSColor(calibratedRed: 0.20, green: 0.96, blue: 0.58, alpha: 1).setFill()
+    rabbit.fill()
+
+    NSColor(calibratedRed: 0.07, green: 0.08, blue: 0.09, alpha: 1).setFill()
+    NSBezierPath(ovalIn: NSRect(x: 425 * scale, y: 632 * scale, width: 34 * scale, height: 38 * scale)).fill()
+    NSBezierPath(ovalIn: NSRect(x: 565 * scale, y: 632 * scale, width: 34 * scale, height: 38 * scale)).fill()
+
+    let nose = NSBezierPath()
+    nose.move(to: NSPoint(x: 512 * scale, y: 590 * scale))
+    nose.line(to: NSPoint(x: 488 * scale, y: 620 * scale))
+    nose.line(to: NSPoint(x: 536 * scale, y: 620 * scale))
+    nose.close()
+    nose.fill()
+
+    NSGraphicsContext.restoreGraphicsState()
+    return bitmap
+}
+
+func drawRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, infinite: Bool = false) -> NSBitmapImageRep {
+    let pixels = Int(size)
+    guard let bitmap = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: pixels,
+        pixelsHigh: pixels,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else {
+        fatalError("Failed to create bitmap")
+    }
+
+    bitmap.size = NSSize(width: size, height: size)
+
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+
+    let rect = NSRect(x: 0, y: 0, width: size, height: size)
+    NSColor.clear.setFill()
+    rect.fill()
+    NSColor.labelColor.setFill()
+    NSColor.labelColor.setStroke()
+
+    let scale = size / 44
+    let hop = active ? sin(max(0, min(1, phase)) * .pi) * 5.2 : 0
+    let lean = active ? (phase - 0.5) * 1.6 : 0
+    let baseY = 3.8 + hop
+
+    let body = NSBezierPath(ovalIn: NSRect(x: (10.3 + lean) * scale, y: baseY * scale, width: 22.4 * scale, height: 20.0 * scale))
+    body.fill()
+
+    let head = NSBezierPath(ovalIn: NSRect(x: (14.3 + lean) * scale, y: (baseY + 13.2) * scale, width: 15.4 * scale, height: 13.8 * scale))
+    head.fill()
+
+    let leftEar = NSBezierPath()
+    leftEar.move(to: NSPoint(x: (16.6 + lean) * scale, y: (baseY + 24.0) * scale))
+    leftEar.curve(
+        to: NSPoint(x: (14.2 + lean) * scale, y: (baseY + 37.4) * scale),
+        controlPoint1: NSPoint(x: (14.2 + lean) * scale, y: (baseY + 27.8) * scale),
+        controlPoint2: NSPoint(x: (13.3 + lean) * scale, y: (baseY + 33.4) * scale)
+    )
+    leftEar.curve(
+        to: NSPoint(x: (20.7 + lean) * scale, y: (baseY + 24.0) * scale),
+        controlPoint1: NSPoint(x: (19.5 + lean) * scale, y: (baseY + 36.8) * scale),
+        controlPoint2: NSPoint(x: (20.2 + lean) * scale, y: (baseY + 29.5) * scale)
+    )
+    leftEar.close()
+    leftEar.fill()
+
+    let rightEar = NSBezierPath()
+    rightEar.move(to: NSPoint(x: (23.1 + lean) * scale, y: (baseY + 24.0) * scale))
+    rightEar.curve(
+        to: NSPoint(x: (28.2 + lean) * scale, y: (baseY + 37.0) * scale),
+        controlPoint1: NSPoint(x: (23.9 + lean) * scale, y: (baseY + 30.4) * scale),
+        controlPoint2: NSPoint(x: (25.0 + lean) * scale, y: (baseY + 35.6) * scale)
+    )
+    rightEar.curve(
+        to: NSPoint(x: (27.1 + lean) * scale, y: (baseY + 23.8) * scale),
+        controlPoint1: NSPoint(x: (32.1 + lean) * scale, y: (baseY + 33.8) * scale),
+        controlPoint2: NSPoint(x: (30.2 + lean) * scale, y: (baseY + 26.7) * scale)
+    )
+    rightEar.close()
+    rightEar.fill()
+
+    let tail = NSBezierPath(ovalIn: NSRect(x: (6.6 + lean) * scale, y: (baseY + 9.0) * scale, width: 7.8 * scale, height: 7.4 * scale))
+    tail.fill()
+
+    let rearFoot = NSBezierPath(ovalIn: NSRect(x: (9.2 + lean) * scale, y: (baseY - 1.2) * scale, width: 10.8 * scale, height: 4.8 * scale))
+    rearFoot.fill()
+    let frontFoot = NSBezierPath(ovalIn: NSRect(x: (24.8 + lean) * scale, y: (baseY - 1.0) * scale, width: 11.2 * scale, height: 4.6 * scale))
+    frontFoot.fill()
+
+    if infinite {
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current?.compositingOperation = .destinationOut
+        NSColor.white.setFill()
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11.5 * scale, weight: .bold),
+            .foregroundColor: NSColor.white,
+            .paragraphStyle: paragraphStyle,
+        ]
+        NSAttributedString(string: "∞", attributes: attributes).draw(in: NSRect(
+            x: (15.0 + lean) * scale,
+            y: (baseY + 5.0) * scale,
+            width: 15.0 * scale,
+            height: 12.0 * scale
+        ))
+        NSGraphicsContext.restoreGraphicsState()
+    } else if active {
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current?.compositingOperation = .destinationOut
+        NSColor.white.setFill()
+        NSBezierPath(ovalIn: NSRect(x: (18.2 + lean) * scale, y: (baseY + 18.4) * scale, width: 1.7 * scale, height: 1.8 * scale)).fill()
+        NSBezierPath(ovalIn: NSRect(x: (24.0 + lean) * scale, y: (baseY + 18.4) * scale, width: 1.7 * scale, height: 1.8 * scale)).fill()
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
+    NSGraphicsContext.restoreGraphicsState()
+    return bitmap
+}
+
+func drawPixelRabbitAppIcon(size: CGFloat) -> NSBitmapImageRep {
+    let pixels = Int(size)
+    guard let bitmap = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: pixels,
+        pixelsHigh: pixels,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else {
+        fatalError("Failed to create bitmap")
+    }
+
+    bitmap.size = NSSize(width: size, height: size)
+
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+
+    let rect = NSRect(x: 0, y: 0, width: size, height: size)
+    NSColor.clear.setFill()
+    rect.fill()
+    NSColor(calibratedRed: 0.07, green: 0.08, blue: 0.09, alpha: 1).setFill()
+    NSBezierPath(roundedRect: rect, xRadius: size * 0.22, yRadius: size * 0.22).fill()
+
+    let unit = size / 16
+    func block(_ x: Int, _ y: Int, _ w: Int = 1, _ h: Int = 1, color: NSColor) {
+        color.setFill()
+        NSRect(x: CGFloat(x) * unit, y: CGFloat(y) * unit, width: CGFloat(w) * unit, height: CGFloat(h) * unit).fill()
+    }
+
+    let green = NSColor(calibratedRed: 0.20, green: 0.96, blue: 0.58, alpha: 1)
+    let dark = NSColor(calibratedRed: 0.07, green: 0.08, blue: 0.09, alpha: 1)
+    let glow = NSColor(calibratedRed: 0.20, green: 0.96, blue: 0.58, alpha: 0.18)
+
+    block(5, 1, 2, 5, color: glow)
+    block(9, 1, 2, 5, color: glow)
+    block(4, 6, 8, 7, color: glow)
+    block(3, 9, 10, 4, color: glow)
+
+    block(5, 2, 2, 5, color: green)
+    block(9, 2, 2, 5, color: green)
+    block(4, 6, 8, 1, color: green)
+    block(3, 7, 10, 5, color: green)
+    block(4, 12, 8, 1, color: green)
+    block(6, 13, 4, 1, color: green)
+    block(2, 10, 2, 2, color: green)
+    block(11, 10, 3, 2, color: green)
+    block(4, 13, 3, 1, color: green)
+    block(9, 13, 3, 1, color: green)
+
+    block(6, 8, color: dark)
+    block(9, 8, color: dark)
+    block(7, 10, 2, 1, color: dark)
+
+    NSGraphicsContext.restoreGraphicsState()
+    return bitmap
+}
+
+func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, infinite: Bool = false) -> NSBitmapImageRep {
+    let pixels = Int(size)
+    guard let bitmap = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: pixels,
+        pixelsHigh: pixels,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else {
+        fatalError("Failed to create bitmap")
+    }
+
+    bitmap.size = NSSize(width: size, height: size)
+
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+
+    let rect = NSRect(x: 0, y: 0, width: size, height: size)
+    NSColor.clear.setFill()
+    rect.fill()
+
+    let unit = size / 22
+    let hop = active ? Int(round(sin(max(0, min(1, phase)) * .pi) * 3)) : 0
+    let lean = active ? Int(round((phase - 0.5) * 2)) : 0
+    let yOffset = hop
+
+    func block(_ x: Int, _ y: Int, _ w: Int = 1, _ h: Int = 1) {
+        NSColor.labelColor.setFill()
+        NSRect(
+            x: CGFloat(x + lean) * unit,
+            y: CGFloat(y + yOffset) * unit,
+            width: CGFloat(w) * unit,
+            height: CGFloat(h) * unit
+        ).fill()
+    }
+
+    func cutout(_ x: Int, _ y: Int, _ w: Int = 1, _ h: Int = 1) {
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current?.compositingOperation = .destinationOut
+        NSColor.white.setFill()
+        NSRect(
+            x: CGFloat(x + lean) * unit,
+            y: CGFloat(y + yOffset) * unit,
+            width: CGFloat(w) * unit,
+            height: CGFloat(h) * unit
+        ).fill()
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
+    block(7, 3, 2, 5)
+    block(13, 3, 2, 5)
+    block(6, 8, 10, 1)
+    block(5, 9, 12, 5)
+    block(6, 14, 10, 2)
+    block(8, 16, 6, 1)
+    block(4, 12, 2, 2)
+    block(16, 12, 3, 2)
+
+    if active, hop > 0 {
+        block(5, 17, 4, 1)
+        block(13, 17, 4, 1)
+    } else {
+        block(4, 16, 5, 1)
+        block(13, 16, 5, 1)
+    }
+
+    if infinite {
+        cutout(8, 11, 1, 1)
+        cutout(10, 11, 1, 1)
+        cutout(12, 11, 1, 1)
+        cutout(14, 11, 1, 1)
+        cutout(9, 10, 1, 1)
+        cutout(13, 10, 1, 1)
+        cutout(10, 9, 1, 1)
+        cutout(12, 9, 1, 1)
+    } else if active {
+        cutout(8, 10)
+        cutout(13, 10)
+        cutout(10, 12, 2, 1)
+    } else {
+        cutout(8, 11, 6, 1)
+    }
+
+    NSGraphicsContext.restoreGraphicsState()
+    return bitmap
+}
+
 func drawStatusDot(size: CGFloat, color: NSColor) -> NSBitmapImageRep {
     let pixels = Int(size)
     guard let bitmap = NSBitmapImageRep(
@@ -323,30 +639,30 @@ let appIconSpecs: [(String, CGFloat)] = [
 ]
 
 for (filename, size) in appIconSpecs {
-    try writePNG(drawSignatureIcon(size: size), to: appIconDir.appendingPathComponent(filename))
+    try writePNG(drawPixelRabbitAppIcon(size: size), to: appIconDir.appendingPathComponent(filename))
 }
 
-try writePNG(drawSignatureIcon(size: 44, menuBar: true), to: menuIconDir.appendingPathComponent("menubar-icon.png"))
-try writePNG(drawMenuBarIcon(size: 52, active: true), to: menuIconOnDir.appendingPathComponent("menubar-icon-on.png"))
-try writePNG(drawMenuBarIcon(size: 52, active: false), to: menuIconOffDir.appendingPathComponent("menubar-icon-off.png"))
-try writePNG(drawMenuBarIcon(size: 52, active: true, infinite: true), to: menuIconInfiniteDir.appendingPathComponent("menubar-icon-infinite.png"))
+try writePNG(drawPixelRabbitMenuBarIcon(size: 52, phase: 0, active: false), to: menuIconDir.appendingPathComponent("menubar-icon.png"))
+try writePNG(drawPixelRabbitMenuBarIcon(size: 52, phase: 0.35, active: true), to: menuIconOnDir.appendingPathComponent("menubar-icon-on.png"))
+try writePNG(drawPixelRabbitMenuBarIcon(size: 52, phase: 0, active: false), to: menuIconOffDir.appendingPathComponent("menubar-icon-off.png"))
+try writePNG(drawPixelRabbitMenuBarIcon(size: 52, phase: 0.35, active: true, infinite: true), to: menuIconInfiniteDir.appendingPathComponent("menubar-icon-infinite.png"))
 try writeImageSetContents(filename: "menubar-icon.png", to: menuIconDir)
 try writeImageSetContents(filename: "menubar-icon-on.png", to: menuIconOnDir)
 try writeImageSetContents(filename: "menubar-icon-off.png", to: menuIconOffDir)
 try writeImageSetContents(filename: "menubar-icon-infinite.png", to: menuIconInfiniteDir)
 
 for index in 0...4 {
-    let openness = CGFloat(index) / 4
+    let phase = CGFloat(index) / 4
     let frameFilename = "menubar-icon-frame-\(index).png"
     try writePNG(
-        drawAnimatedMenuBarIcon(size: 52, openness: openness),
+        drawPixelRabbitMenuBarIcon(size: 52, phase: phase, active: index > 0),
         to: menuIconFrameDirs[index].appendingPathComponent(frameFilename)
     )
     try writeImageSetContents(filename: frameFilename, to: menuIconFrameDirs[index])
 
     let infiniteFrameFilename = "menubar-icon-infinite-frame-\(index).png"
     try writePNG(
-        drawAnimatedMenuBarIcon(size: 52, openness: openness, infinite: true),
+        drawPixelRabbitMenuBarIcon(size: 52, phase: phase, active: index > 0, infinite: true),
         to: menuIconInfiniteFrameDirs[index].appendingPathComponent(infiniteFrameFilename)
     )
     try writeImageSetContents(filename: infiniteFrameFilename, to: menuIconInfiniteFrameDirs[index])
