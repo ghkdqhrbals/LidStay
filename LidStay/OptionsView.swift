@@ -45,7 +45,7 @@ struct OptionsView: View {
                     .disabled(!isBatteryConditionSelected)
                 }
 
-                optionRow(title: isKorean ? "배터리 기준" : "Limit", topic: .batteryLimit) {
+                optionRow(title: isKorean ? "배터리 기준" : "Limit") {
                     HStack(spacing: 10) {
                         Text("1%")
                             .foregroundStyle(.secondary)
@@ -66,7 +66,7 @@ struct OptionsView: View {
 
                 Divider()
 
-                optionRow(title: isKorean ? "자동 실행" : "Launch", topic: .launchAtLogin) {
+                optionRow(title: isKorean ? "자동 실행" : "Launch") {
                     HStack(spacing: 10) {
                         Toggle("", isOn: $appState.launchAtLoginEnabled)
                             .labelsHidden()
@@ -76,21 +76,19 @@ struct OptionsView: View {
                     }
                 }
 
-                optionRow(title: isKorean ? "알림" : "Alerts", topic: .notifications) {
+                optionRow(title: isKorean ? "알림" : "Alerts") {
                     HStack(spacing: 10) {
                         Button(appState.notificationPermissionButtonTitle) {
-                            appState.requestNotificationPermission()
-                        }
-                        .disabled(!appState.canRequestNotificationPermission)
-                        if appState.isNotificationDenied {
-                            Button(appState.notificationSettingsButtonTitle) {
+                            if appState.canRequestNotificationPermission {
+                                appState.requestNotificationPermission()
+                            } else {
                                 appState.openNotificationSettings()
                             }
                         }
                     }
                 }
 
-                optionRow(title: isKorean ? "업데이트" : "Updates", topic: .updates) {
+                optionRow(title: isKorean ? "업데이트" : "Updates") {
                     HStack(spacing: 10) {
                         Button(appState.checkForUpdatesTitle) {
                             updateController.checkForUpdates()
@@ -102,7 +100,7 @@ struct OptionsView: View {
                     }
                 }
 
-                optionRow(title: isKorean ? "자동 업데이트" : "Auto Update", topic: .automaticUpdates) {
+                optionRow(title: isKorean ? "자동 업데이트" : "Auto Update") {
                     HStack(spacing: 10) {
                         Toggle("", isOn: Binding(
                             get: { updateController.automaticUpdatesEnabled },
@@ -116,7 +114,7 @@ struct OptionsView: View {
                     }
                 }
 
-                optionRow(title: appState.languageTitle, topic: .language) {
+                optionRow(title: appState.languageTitle) {
                     Picker("", selection: $appState.language) {
                         ForEach(AppLanguage.allCases) { language in
                             Text(language.title).tag(language)
@@ -127,7 +125,7 @@ struct OptionsView: View {
                     .frame(width: 140)
                 }
 
-                optionRow(title: isKorean ? "정보" : "About", topic: .about) {
+                optionRow(title: isKorean ? "정보" : "About") {
                     HStack(spacing: 10) {
                         Button(isKorean ? "LidStay 정보" : "About LidStay") {
                             appState.showAbout()
@@ -172,14 +170,16 @@ struct OptionsView: View {
 
     private func optionRow<Content: View>(
         title: String,
-        topic: HelpTopic,
+        topic: HelpTopic? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
         HStack(alignment: .center, spacing: 14) {
             HStack(spacing: 6) {
                 Text(title)
                     .font(.body)
-                helpButton(topic)
+                if let topic {
+                    helpButton(topic)
+                }
             }
             .frame(width: 104, alignment: .leading)
 

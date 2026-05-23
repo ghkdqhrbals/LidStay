@@ -418,7 +418,14 @@ final class AppState: ObservableObject {
         language == .korean ? "테스트" : "Test"
     }
     var notificationPermissionButtonTitle: String {
-        language == .korean ? "권한 요청" : "Allow"
+        switch notificationAuthorizationStatus {
+        case .notDetermined:
+            return language == .korean ? "권한 요청" : "Allow"
+        case .denied:
+            return language == .korean ? "설정 열기" : "Open Settings"
+        default:
+            return language == .korean ? "알림 설정" : "Notification Settings"
+        }
     }
     var notificationSettingsButtonTitle: String {
         language == .korean ? "설정" : "Settings"
