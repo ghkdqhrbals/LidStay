@@ -103,6 +103,12 @@
       font-size: 13px;
     }
 
+    .release {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
     .features {
       margin: 46px 0 0;
       padding: 0;
@@ -163,6 +169,7 @@
       <a class="button" href="https://github.com/ghkdqhrbals/LidStay">Source Code</a>
     </div>
     <p class="subtext">For macOS 13 and newer.</p>
+    <p class="release" id="release-version">Latest release</p>
 
     <ul class="features" aria-label="Features">
       <li><strong>One click</strong> to keep your Mac awake.</li>
@@ -172,8 +179,37 @@
     </ul>
 
     <footer>
-      <a href="https://github.com/ghkdqhrbals/LidStay/releases/latest">Latest Release</a>
+      <a id="release-link" href="https://github.com/ghkdqhrbals/LidStay/releases/latest">Latest Release</a>
     </footer>
   </main>
+  <script>
+    (() => {
+      const versionText = document.getElementById("release-version");
+      const releaseLink = document.getElementById("release-link");
+
+      fetch("https://api.github.com/repos/ghkdqhrbals/LidStay/releases/latest", {
+        headers: { "Accept": "application/vnd.github+json" }
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Release lookup failed");
+          }
+          return response.json();
+        })
+        .then((release) => {
+          if (!release || !release.tag_name) {
+            return;
+          }
+
+          versionText.textContent = `Latest release ${release.tag_name}`;
+          if (release.html_url) {
+            releaseLink.href = release.html_url;
+          }
+        })
+        .catch(() => {
+          versionText.textContent = "Latest release";
+        });
+    })();
+  </script>
 </body>
 </html>
