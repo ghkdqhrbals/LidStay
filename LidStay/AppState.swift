@@ -802,14 +802,18 @@ final class AppState: ObservableObject {
     }
 
     func requestNotificationPermission() {
-        notificationController.requestAuthorizationOrOpenSettings {
-            OptionsWindowController.shared.bringForwardIfVisible()
+        notificationController.requestAuthorizationOrOpenSettings { didOpenSettings in
+            if didOpenSettings {
+                OptionsWindowController.shared.keepVisibleWhileSystemSettingsIsOpen()
+            } else {
+                OptionsWindowController.shared.bringForwardIfVisible()
+            }
         }
     }
 
     func openNotificationSettings() {
         notificationController.openSettings()
-        OptionsWindowController.shared.bringForwardIfVisible()
+        OptionsWindowController.shared.keepVisibleWhileSystemSettingsIsOpen()
     }
 
     func refreshLaunchAtLoginStatus() {
@@ -1130,7 +1134,7 @@ private final class AppNotificationController: NSObject, UNUserNotificationCente
         }
     }
 
-    func requestAuthorizationOrOpenSettings(completion: (() -> Void)? = nil) {
+    func requestAuthorizationOrOpenSettings(completion: ((Bool) -> Void)? = nil) {
         center.getNotificationSettings { [weak self] settings in
             guard let self else {
                 return
@@ -1140,7 +1144,7 @@ private final class AppNotificationController: NSObject, UNUserNotificationCente
                 self.refreshAuthorizationStatus()
                 DispatchQueue.main.async {
                     self.openSettings()
-                    completion?()
+                    completion?(true)
                 }
                 return
             }
@@ -1148,7 +1152,7 @@ private final class AppNotificationController: NSObject, UNUserNotificationCente
             self.center.requestAuthorization(options: [.alert, .sound]) { [weak self] _, _ in
                 self?.refreshAuthorizationStatus()
                 DispatchQueue.main.async {
-                    completion?()
+                    completion?(false)
                 }
             }
         }
