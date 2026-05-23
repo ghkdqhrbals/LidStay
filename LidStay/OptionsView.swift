@@ -146,6 +146,17 @@ struct OptionsView: View {
                     .pickerStyle(.menu)
                     .frame(width: 140)
                 }
+
+                optionRow(title: isKorean ? "정보" : "About", topic: .about) {
+                    HStack(spacing: 10) {
+                        Button(isKorean ? "LidStay 정보" : "About LidStay") {
+                            appState.showAbout()
+                        }
+                        Text(isKorean ? "버전, 연락처, GitHub" : "Version, contact, GitHub")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
             }
 
             Spacer(minLength: 0)
@@ -258,6 +269,7 @@ private enum HelpTopic: Identifiable {
     case automaticUpdates
     case automaticInstall
     case language
+    case about
 
     var id: Self { self }
 
@@ -281,6 +293,8 @@ private enum HelpTopic: Identifiable {
             return isKorean ? "자동 설치" : "Automatic install"
         case .language:
             return isKorean ? "언어" : "Language"
+        case .about:
+            return isKorean ? "정보" : "About"
         }
     }
 
@@ -322,6 +336,10 @@ private enum HelpTopic: Identifiable {
             return isKorean
                 ? "메뉴와 옵션 창의 표시 언어를 바꿉니다."
                 : "Changes the display language for the menu and options window."
+        case .about:
+            return isKorean
+                ? "앱 버전, 연락처, GitHub 릴리스 링크를 확인합니다."
+                : "Shows app version, contact, and GitHub release links."
         }
     }
 }

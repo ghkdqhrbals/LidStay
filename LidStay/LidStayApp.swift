@@ -1,24 +1,31 @@
 import AppKit
 import SwiftUI
 
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var appState: AppState?
+    private var statusItemController: StatusItemController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+
+        let appState = AppState()
+        self.appState = appState
+        statusItemController = StatusItemController(appState: appState)
+        _ = UpdateController.shared
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        appState?.shutdown()
+    }
+}
+
 @main
 struct LidStayApp: App {
-    @StateObject private var appState = AppState()
-    @StateObject private var updateController = UpdateController.shared
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuBarView()
-                .environmentObject(appState)
-                .environmentObject(updateController)
-                .onAppear {
-                    NSApp.setActivationPolicy(.accessory)
-                }
-        } label: {
-            Image(appState.menuBarIconName)
-                .resizable()
-                .renderingMode(.template)
-                .frame(width: appState.menuBarIconSize, height: appState.menuBarIconSize)
+        Settings {
+            EmptyView()
         }
     }
 }

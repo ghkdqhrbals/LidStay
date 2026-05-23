@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		8A1C3C7D2C6A4A11008B1010 /* LidStayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C762C6A4A11008B1010 /* LidStayApp.swift */; };
 		8A1C3C7E2C6A4A11008B1010 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C772C6A4A11008B1010 /* MenuBarView.swift */; };
+		8A1C3CB12C6A4A17008B1010 /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3CB02C6A4A17008B1010 /* StatusItemController.swift */; };
 		8A1C3C7F2C6A4A11008B1010 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C782C6A4A11008B1010 /* AppState.swift */; };
 		8A1C3C802C6A4A11008B1010 /* PowerAssertionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */; };
 		8A1C3C812C6A4A11008B1010 /* PowerSourceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */; };
@@ -28,6 +29,7 @@
 		8A1C3C722C6A4A10008B1010 /* LidStay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LidStay.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A1C3C762C6A4A11008B1010 /* LidStayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LidStayApp.swift; sourceTree = "<group>"; };
 		8A1C3C772C6A4A11008B1010 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		8A1C3CB02C6A4A17008B1010 /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
 		8A1C3C782C6A4A11008B1010 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerAssertionController.swift; sourceTree = "<group>"; };
 		8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerSourceMonitor.swift; sourceTree = "<group>"; };
@@ -80,6 +82,7 @@
 			children = (
 				8A1C3C762C6A4A11008B1010 /* LidStayApp.swift */,
 				8A1C3C772C6A4A11008B1010 /* MenuBarView.swift */,
+				8A1C3CB02C6A4A17008B1010 /* StatusItemController.swift */,
 				8A1C3C782C6A4A11008B1010 /* AppState.swift */,
 				8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */,
 				8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */,
@@ -183,6 +186,7 @@
 			files = (
 				8A1C3C7D2C6A4A11008B1010 /* LidStayApp.swift in Sources */,
 				8A1C3C7E2C6A4A11008B1010 /* MenuBarView.swift in Sources */,
+				8A1C3CB12C6A4A17008B1010 /* StatusItemController.swift in Sources */,
 				8A1C3C7F2C6A4A11008B1010 /* AppState.swift in Sources */,
 				8A1C3C802C6A4A11008B1010 /* PowerAssertionController.swift in Sources */,
 				8A1C3C812C6A4A11008B1010 /* PowerSourceMonitor.swift in Sources */,
