@@ -532,7 +532,7 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
 
     let unit = size / 24
     let t = max(0, min(1, phase))
-    let xOffset = active ? Int(round((t - 0.5) * 3)) : 0
+    let xOffset = active ? Int(round((t - 0.5) * 2)) : 0
     let yOffset = active ? (t == 0.25 || t == 0.75 ? 1 : 0) : 0
     let stretched = active && (t == 0 || t == 1)
     let tucked = active && t == 0.5
@@ -564,81 +564,67 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
         NSGraphicsContext.restoreGraphicsState()
     }
 
-    func road(_ x: Int, _ y: Int, _ w: Int = 1) {
-        NSColor.labelColor.withAlphaComponent(0.34).setFill()
+    func shade(_ x: Int, _ y: Int, _ w: Int = 1, _ h: Int = 1, alpha: CGFloat = 0.22) {
+        NSColor.labelColor.withAlphaComponent(alpha).setFill()
         NSRect(
-            x: CGFloat(x) * unit,
-            y: CGFloat(24 - y - 1) * unit,
+            x: CGFloat(x + xOffset) * unit,
+            y: CGFloat(24 - y - h + yOffset) * unit,
             width: CGFloat(w) * unit,
-            height: unit
+            height: CGFloat(h) * unit
         ).fill()
     }
 
-    let roadShift = active ? Int(round(t * 5)) : 0
-    for start in stride(from: -roadShift, through: 24, by: 6) {
-        road(start, 20, 4)
-    }
-    road(3, 21, 2)
-    road(18, 21, 2)
-
     if active {
-        NSColor.labelColor.withAlphaComponent(0.20).setFill()
-        NSRect(x: CGFloat(2 + xOffset) * unit, y: CGFloat(24 - 14) * unit, width: 3 * unit, height: unit).fill()
-        if stretched {
-            NSRect(x: CGFloat(3 + xOffset) * unit, y: CGFloat(24 - 12) * unit, width: 2 * unit, height: unit).fill()
-        }
-    }
-
-    if active {
-        block(8, 8, 8, 1)
-        block(6, 9, 12, 2)
-        block(5, 11, 14, 4)
-        block(7, 15, 10, 1)
-        block(10, 6, 2, 2)
-        block(14, 6, 2, 2)
+        shade(6, 18, 12, 1, alpha: 0.20)
+        block(8, 4, 3, 3)
+        block(14, 4, 3, 3)
+        block(7, 6, 11, 2)
+        block(5, 8, 15, 3)
+        block(4, 11, 17, 5)
+        block(6, 16, 13, 2)
+        block(8, 18, 9, 1)
 
         if stretched {
-            block(5, 16, 5, 1)
-            block(15, 16, 5, 1)
-            block(4, 17, 2, 1)
-            block(19, 17, 2, 1)
+            block(5, 18, 5, 1)
+            block(15, 18, 5, 1)
+            block(4, 19, 3, 1)
+            block(18, 19, 3, 1)
         } else if tucked {
-            block(8, 16, 3, 1)
-            block(14, 16, 3, 1)
-            block(9, 17, 1, 1)
-            block(15, 17, 1, 1)
+            block(7, 18, 4, 1)
+            block(14, 18, 4, 1)
+            block(9, 19, 1, 1)
+            block(16, 19, 1, 1)
         } else {
-            block(7, 16, 4, 1)
-            block(14, 16, 4, 1)
-            block(10, 17, 2, 1)
-            block(16, 17, 2, 1)
+            block(6, 18, 5, 1)
+            block(14, 18, 5, 1)
+            block(9, 19, 2, 1)
+            block(16, 19, 2, 1)
         }
 
         if infinite {
-            cutout(8, 12, 1, 1)
-            cutout(10, 11, 1, 1)
-            cutout(11, 12, 1, 1)
-            cutout(12, 11, 1, 1)
-            cutout(14, 12, 1, 1)
-            cutout(10, 13, 1, 1)
-            cutout(12, 13, 1, 1)
+            cutout(7, 12, 2, 1)
+            cutout(10, 11, 2, 1)
+            cutout(12, 12, 2, 1)
+            cutout(15, 11, 2, 1)
+            cutout(10, 13, 2, 1)
+            cutout(13, 13, 2, 1)
         } else {
-            cutout(9, 11, 1, 1)
-            cutout(15, 11, 1, 1)
-            cutout(11, 13, 3, 1)
+            cutout(8, 10, 2, 2)
+            cutout(15, 10, 2, 2)
+            cutout(11, 13, 4, 1)
         }
     } else {
-        block(7, 13, 11, 3)
-        block(6, 14, 13, 2)
+        shade(5, 19, 14, 1, alpha: 0.20)
+        block(6, 13, 13, 3)
+        block(5, 15, 15, 3)
+        block(7, 18, 11, 1)
         block(9, 12, 7, 1)
-        block(17, 11, 2, 2)
-        block(5, 16, 14, 1)
-        block(10, 17, 5, 1)
-        block(9, 8, 3, 1)
-        block(11, 7, 3, 1)
-        block(13, 6, 3, 1)
-        cutout(9, 14, 3, 1)
-        cutout(15, 14, 2, 1)
+        block(17, 11, 3, 2)
+        block(9, 7, 3, 1)
+        block(11, 6, 4, 1)
+        block(14, 5, 4, 1)
+        cutout(9, 15, 4, 1)
+        cutout(15, 15, 3, 1)
     }
 
     NSGraphicsContext.restoreGraphicsState()

@@ -248,7 +248,7 @@ final class AppState: ObservableObject {
     }
 
     var menuBarIconSize: CGFloat {
-        24
+        25
     }
 
     var isMenuBarIconActive: Bool {
