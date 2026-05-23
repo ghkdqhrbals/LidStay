@@ -3,19 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="LidStay는 Mac을 필요한 시간 동안 조용히 켜두는 macOS 메뉴바 앱입니다.">
-  <title>LidStay - Mac을 필요한 동안만 켜두기</title>
+  <meta name="description" content="LidStay keeps your Mac awake from the menu bar.">
+  <title>LidStay - Keep your Mac awake</title>
   <style>
     :root {
       color-scheme: light dark;
       --bg: #f7f7f4;
       --fg: #1f2328;
-      --muted: #666b72;
-      --line: rgba(31, 35, 40, 0.13);
-      --panel: rgba(255, 255, 255, 0.72);
+      --muted: #63686f;
+      --line: rgba(31, 35, 40, 0.14);
       --accent: #2ecc71;
-      --accent-text: #0c6b3d;
-      --shadow: 0 18px 48px rgba(24, 28, 32, 0.1);
+      --accent-text: #0b6b3d;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -23,10 +21,8 @@
         --bg: #171817;
         --fg: #f4f4f0;
         --muted: #a7aaa4;
-        --line: rgba(255, 255, 255, 0.14);
-        --panel: rgba(36, 38, 35, 0.72);
+        --line: rgba(255, 255, 255, 0.15);
         --accent-text: #63dd98;
-        --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
       }
     }
 
@@ -36,7 +32,6 @@
 
     body {
       margin: 0;
-      min-height: 100vh;
       background: var(--bg);
       color: var(--fg);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
@@ -48,136 +43,48 @@
     }
 
     .page {
-      width: min(760px, calc(100vw - 40px));
+      width: min(620px, calc(100vw - 36px));
       margin: 0 auto;
-      padding: 30px 0 38px;
-    }
-
-    nav,
-    footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .brand,
-    .links {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .brand {
-      font-size: 15px;
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .brand img {
-      width: 30px;
-      height: 30px;
-      border-radius: 7px;
-    }
-
-    .links {
-      color: var(--muted);
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .links a {
-      text-decoration: none;
-    }
-
-    main {
-      min-height: calc(100vh - 138px);
-      padding: 70px 0 58px;
+      padding: 56px 0 34px;
       text-align: center;
     }
 
     .icon {
-      position: relative;
-      width: 124px;
-      height: 124px;
-      margin: 0 auto 28px;
-      border-radius: 28px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-
-    .icon img {
       display: block;
-      width: 124px;
-      height: 124px;
-      border-radius: 28px;
-    }
-
-    .icon::after {
-      position: absolute;
-      inset: 0;
-      background: #050806;
-      transform: translateY(-101%);
-      animation: blink 5.8s ease-in-out infinite;
-      content: "";
-    }
-
-    @keyframes blink {
-      0%,
-      86%,
-      100% {
-        transform: translateY(-101%);
-      }
-
-      90%,
-      92% {
-        transform: translateY(0);
-      }
-
-      95% {
-        transform: translateY(-101%);
-      }
-    }
-
-    .label {
-      margin: 0 0 12px;
-      color: var(--accent-text);
-      font-size: 14px;
-      font-weight: 700;
+      width: 112px;
+      height: 112px;
+      margin: 0 auto 26px;
+      border-radius: 24px;
     }
 
     h1 {
-      max-width: 680px;
-      margin: 0 auto;
-      font-size: clamp(42px, 7vw, 70px);
-      line-height: 1.04;
+      margin: 0;
+      font-size: 54px;
+      line-height: 1.05;
       letter-spacing: 0;
     }
 
-    .lead {
-      max-width: 560px;
-      margin: 18px auto 0;
+    .tagline {
+      margin: 12px 0 0;
       color: var(--muted);
-      font-size: 19px;
+      font-size: 21px;
     }
 
     .actions {
       display: flex;
-      flex-wrap: wrap;
       justify-content: center;
       gap: 10px;
-      margin-top: 30px;
+      margin: 28px 0 0;
     }
 
     .button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 46px;
-      padding: 11px 18px;
+      min-height: 44px;
+      padding: 10px 18px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: transparent;
       color: var(--fg);
       font-size: 15px;
       font-weight: 700;
@@ -190,41 +97,33 @@
       color: #06140b;
     }
 
-    .install-note {
-      margin: 13px 0 0;
+    .subtext {
+      margin: 12px 0 0;
       color: var(--muted);
       font-size: 13px;
     }
 
     .features {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 42px;
+      margin: 46px 0 0;
+      padding: 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 16px;
+      list-style: none;
       text-align: left;
     }
 
-    .feature {
-      min-height: 126px;
-      padding: 18px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: var(--panel);
-      backdrop-filter: blur(18px);
+    .features li {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
     }
 
-    .feature strong {
-      display: block;
-      margin-bottom: 7px;
-      font-size: 15px;
-    }
-
-    .feature span {
-      color: var(--muted);
-      font-size: 14px;
+    .features strong {
+      color: var(--fg);
     }
 
     footer {
+      margin-top: 38px;
       color: var(--muted);
       font-size: 13px;
     }
@@ -234,94 +133,47 @@
       text-decoration: none;
     }
 
-    @media (prefers-reduced-motion: reduce) {
-      .icon::after {
-        animation: none;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .page {
-        width: min(100vw - 28px, 520px);
-      }
-
-      main {
-        min-height: auto;
-        padding: 52px 0 42px;
-      }
-
-      .features {
-        grid-template-columns: 1fr;
-      }
-    }
-
     @media (max-width: 480px) {
-      nav,
-      footer {
-        align-items: flex-start;
-        flex-direction: column;
+      .page {
+        padding-top: 40px;
       }
 
       h1 {
-        font-size: 40px;
+        font-size: 42px;
       }
 
-      .lead {
-        font-size: 17px;
+      .tagline {
+        font-size: 18px;
       }
 
-      .button {
-        width: 100%;
+      .actions {
+        flex-direction: column;
       }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <nav aria-label="주요 메뉴">
-      <a class="brand" href="#">
-        <img src="assets/lidstay-icon.png" alt="" width="30" height="30">
-        <span>LidStay</span>
-      </a>
-      <div class="links">
-        <a href="https://github.com/ghkdqhrbals/LidStay/releases/latest">Release</a>
-        <a href="https://github.com/ghkdqhrbals/LidStay">GitHub</a>
-      </div>
-    </nav>
+  <main class="page">
+    <img class="icon" src="assets/lidstay-icon.png" alt="LidStay app icon" width="112" height="112">
+    <h1>LidStay</h1>
+    <p class="tagline">Keeps your Mac awake from the menu bar.</p>
 
-    <main>
-      <div class="icon">
-        <img src="assets/lidstay-icon.png" alt="LidStay 앱 아이콘" width="124" height="124">
-      </div>
-      <p class="label">macOS menu bar app</p>
-      <h1>Mac을 필요한 동안만 켜두세요.</h1>
-      <p class="lead">LidStay는 화면은 쉬게 두고, 다운로드나 개발 서버 같은 작업은 조용히 이어가게 해줍니다.</p>
-      <div class="actions">
-        <a class="button primary" href="https://github.com/ghkdqhrbals/LidStay/releases/latest/download/LidStay.pkg">LidStay.pkg 다운로드</a>
-        <a class="button" href="https://github.com/ghkdqhrbals/LidStay/releases/latest">최신 버전 보기</a>
-      </div>
-      <p class="install-note">pkg를 열고 안내대로 설치하면 메뉴바에 LidStay가 나타납니다.</p>
+    <div class="actions">
+      <a class="button primary" href="https://github.com/ghkdqhrbals/LidStay/releases/latest/download/LidStay.pkg">Download</a>
+      <a class="button" href="https://github.com/ghkdqhrbals/LidStay">Source Code</a>
+    </div>
+    <p class="subtext">For macOS 13 and newer.</p>
 
-      <section class="features" aria-label="주요 기능">
-        <div class="feature">
-          <strong>메뉴바에서 바로</strong>
-          <span>켜기, 중지, 시간 선택을 작은 메뉴에서 처리합니다.</span>
-        </div>
-        <div class="feature">
-          <strong>화면은 쉬게</strong>
-          <span>디스플레이 절전은 그대로 두고 필요한 작업만 유지합니다.</span>
-        </div>
-        <div class="feature">
-          <strong>배터리 기준 설정</strong>
-          <span>배터리가 낮아지면 자동으로 멈추도록 설정할 수 있습니다.</span>
-        </div>
-      </section>
-    </main>
+    <ul class="features" aria-label="Features">
+      <li><strong>One click</strong> to keep your Mac awake.</li>
+      <li><strong>Choose a duration</strong> or keep it on until you stop it.</li>
+      <li><strong>Display sleep is allowed</strong>, so the screen can still turn off.</li>
+      <li><strong>Battery limit</strong> can stop the session automatically.</li>
+    </ul>
 
     <footer>
-      <span>macOS 13 이상</span>
-      <span><a href="https://github.com/ghkdqhrbals/LidStay">GitHub</a> · <a href="https://github.com/ghkdqhrbals/LidStay/releases/latest">Release</a></span>
+      <a href="https://github.com/ghkdqhrbals/LidStay/releases/latest">Latest Release</a>
     </footer>
-  </div>
+  </main>
 </body>
 </html>
