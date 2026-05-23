@@ -679,8 +679,11 @@ final class AppState: ObservableObject {
             return
         }
 
+        let wasEnabled = isSleepPreventionEnabled
         selectedDurationID = option.id
-        startSelectedSession()
+        if !wasEnabled {
+            startSelectedSession()
+        }
     }
 
     func showCustomMinutesPrompt() {
@@ -707,9 +710,12 @@ final class AppState: ObservableObject {
             return
         }
 
+        let wasEnabled = isSleepPreventionEnabled
         durationMinutesText = trimmed
         selectedDurationID = "custom"
-        startSelectedSession()
+        if !wasEnabled {
+            startSelectedSession()
+        }
     }
 
     func selectLowBatteryLimit(_ limit: Int) {
@@ -924,10 +930,10 @@ final class AppState: ObservableObject {
                 guard !Task.isCancelled else {
                     return
                 }
-                try? await Task.sleep(nanoseconds: 42_000_000)
+                try? await Task.sleep(nanoseconds: 260_000_000)
                 self?.menuBarIconAnimationName = frame
             }
-            try? await Task.sleep(nanoseconds: 42_000_000)
+            try? await Task.sleep(nanoseconds: 260_000_000)
             self?.menuBarIconAnimationName = nil
             self?.iconAnimationTask = nil
             self?.syncMenuBarMotion()

@@ -532,7 +532,7 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
 
     let unit = size / 24
     let t = max(0, min(1, phase))
-    let xOffset = active ? Int(round((t - 0.5) * 4)) : 0
+    let xOffset = active ? Int(round((t - 0.5) * 3)) : 0
     let yOffset = active ? (t == 0.25 || t == 0.75 ? 1 : 0) : 0
     let stretched = active && (t == 0 || t == 1)
     let tucked = active && t == 0.5
@@ -583,60 +583,62 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
 
     if active {
         NSColor.labelColor.withAlphaComponent(0.20).setFill()
-        NSRect(x: CGFloat(1 + xOffset) * unit, y: CGFloat(24 - 14) * unit, width: 3 * unit, height: unit).fill()
+        NSRect(x: CGFloat(2 + xOffset) * unit, y: CGFloat(24 - 14) * unit, width: 3 * unit, height: unit).fill()
         if stretched {
-            NSRect(x: CGFloat(2 + xOffset) * unit, y: CGFloat(24 - 12) * unit, width: 2 * unit, height: unit).fill()
+            NSRect(x: CGFloat(3 + xOffset) * unit, y: CGFloat(24 - 12) * unit, width: 2 * unit, height: unit).fill()
         }
     }
 
-    block(6, 10, 9, 4)
-    block(8, 9, 6, 1)
-    block(9, 14, 5, 1)
-    block(15, 8, 4, 4)
-    block(18, 10, 3, 2)
-    block(20, 11, 1, 1)
-    block(4, 11, 3, 2)
-    block(5, 10, 2, 1)
-    block(12, 5, 2, 4)
-    block(10, 6, 2, 3)
-    block(14, 4, 2, 4)
-    block(12, 4, 2, 1)
+    if active {
+        block(8, 8, 8, 1)
+        block(6, 9, 12, 2)
+        block(5, 11, 14, 4)
+        block(7, 15, 10, 1)
+        block(10, 6, 2, 2)
+        block(14, 6, 2, 2)
 
-    if stretched {
-        block(5, 15, 5, 1)
-        block(14, 16, 6, 1)
-        block(4, 16, 2, 1)
-        block(18, 17, 3, 1)
-    } else if tucked {
-        block(7, 15, 3, 1)
-        block(13, 15, 3, 1)
-        block(8, 16, 1, 2)
-        block(15, 16, 1, 2)
-    } else if active {
-        block(6, 16, 5, 1)
-        block(14, 15, 5, 1)
-        block(9, 17, 2, 1)
-        block(17, 16, 2, 1)
-    } else {
-        block(7, 15, 4, 1)
-        block(14, 15, 4, 1)
-        block(9, 16, 2, 1)
-        block(16, 16, 2, 1)
-    }
+        if stretched {
+            block(5, 16, 5, 1)
+            block(15, 16, 5, 1)
+            block(4, 17, 2, 1)
+            block(19, 17, 2, 1)
+        } else if tucked {
+            block(8, 16, 3, 1)
+            block(14, 16, 3, 1)
+            block(9, 17, 1, 1)
+            block(15, 17, 1, 1)
+        } else {
+            block(7, 16, 4, 1)
+            block(14, 16, 4, 1)
+            block(10, 17, 2, 1)
+            block(16, 17, 2, 1)
+        }
 
-    if infinite {
-        cutout(8, 11, 1, 1)
-        cutout(10, 10, 1, 1)
-        cutout(11, 11, 1, 1)
-        cutout(12, 10, 1, 1)
-        cutout(14, 11, 1, 1)
-        cutout(10, 12, 1, 1)
-        cutout(12, 12, 1, 1)
-    } else if active {
-        cutout(17, 9, 1, 1)
+        if infinite {
+            cutout(8, 12, 1, 1)
+            cutout(10, 11, 1, 1)
+            cutout(11, 12, 1, 1)
+            cutout(12, 11, 1, 1)
+            cutout(14, 12, 1, 1)
+            cutout(10, 13, 1, 1)
+            cutout(12, 13, 1, 1)
+        } else {
+            cutout(9, 11, 1, 1)
+            cutout(15, 11, 1, 1)
+            cutout(11, 13, 3, 1)
+        }
     } else {
-        cutout(17, 9, 1, 1)
-        cutout(8, 12, 5, 1)
+        block(7, 13, 11, 3)
+        block(6, 14, 13, 2)
+        block(9, 12, 7, 1)
+        block(17, 11, 2, 2)
+        block(5, 16, 14, 1)
+        block(10, 17, 5, 1)
+        block(9, 8, 3, 1)
+        block(11, 7, 3, 1)
+        block(13, 6, 3, 1)
+        cutout(9, 14, 3, 1)
+        cutout(15, 14, 2, 1)
     }
 
     NSGraphicsContext.restoreGraphicsState()
