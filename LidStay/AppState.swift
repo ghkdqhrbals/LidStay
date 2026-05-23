@@ -640,6 +640,43 @@ final class AppState: ObservableObject {
         OptionsWindowController.shared.show(appState: self)
     }
 
+    func confirmAndUninstall() {
+        let alert = NSAlert()
+        alert.messageText = language == .korean ? "LidStay를 제거할까요?" : "Remove LidStay?"
+        alert.informativeText = language == .korean
+            ? "앱과 터미널 명령어를 제거합니다. 관리자 권한을 요청할 수 있습니다."
+            : "This removes the app and command line tool. macOS may ask for administrator permission."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: language == .korean ? "제거" : "Remove")
+        alert.addButton(withTitle: language == .korean ? "취소" : "Cancel")
+
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+
+        uninstall()
+    }
+
+    private func uninstall() {
+        let script = [
+            "/bin/launchctl bootout gui/$(/usr/bin/id -u) \(Self.shellQuoted(LoginItemController.plistURL.path)) >/dev/null 2>&1 || true",
+            "/bin/rm -f \(Self.shellQuoted(LoginItemController.plistURL.path))",
+            "/bin/rm -f \(Self.shellQuoted(Self.cliStatusURL.path))",
+            "/usr/sbin/pkgutil --forget com.ghkdqhrbals.LidStay.pkg >/dev/null 2>&1 || true",
+            "/bin/rm -rf /Applications/LidStay.app /usr/local/bin/lidstay",
+        ].joined(separator: "\n")
+
+        let appleScript = "do shell script \(Self.appleScriptQuoted(script)) with administrator privileges"
+        var error: NSDictionary?
+        NSAppleScript(source: appleScript)?.executeAndReturnError(&error)
+
+        if error == nil {
+            shutdown()
+            NSApplication.shared.terminate(nil)
+        }
+    }
+
     func selectDuration(_ option: DurationOption) {
         if option.id == "custom" {
             showCustomMinutesPrompt()
@@ -979,6 +1016,14 @@ final class AppState: ObservableObject {
     private static var cliStatusURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/LidStay/status.json")
+    }
+
+    private static func shellQuoted(_ value: String) -> String {
+        "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
+    }
+
+    private static func appleScriptQuoted(_ value: String) -> String {
+        "\"\(value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {

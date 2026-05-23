@@ -157,12 +157,25 @@ struct OptionsView: View {
                             .lineLimit(1)
                     }
                 }
+
+                optionRow(title: isKorean ? "제거" : "Remove", topic: .uninstall) {
+                    HStack(spacing: 10) {
+                        Button(role: .destructive) {
+                            appState.confirmAndUninstall()
+                        } label: {
+                            Text(isKorean ? "LidStay 제거" : "Remove LidStay")
+                        }
+                        Text(isKorean ? "앱과 터미널 명령어 삭제" : "Delete app and CLI")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
             }
 
             Spacer(minLength: 0)
         }
         .padding(22)
-        .frame(width: 520, height: 468)
+        .frame(width: 520, height: 510)
         .popover(item: $helpTopic) { topic in
             VStack(alignment: .leading, spacing: 8) {
                 Text(topic.title(isKorean: isKorean))
@@ -270,6 +283,7 @@ private enum HelpTopic: Identifiable {
     case automaticInstall
     case language
     case about
+    case uninstall
 
     var id: Self { self }
 
@@ -295,6 +309,8 @@ private enum HelpTopic: Identifiable {
             return isKorean ? "언어" : "Language"
         case .about:
             return isKorean ? "정보" : "About"
+        case .uninstall:
+            return isKorean ? "제거" : "Remove"
         }
     }
 
@@ -340,6 +356,10 @@ private enum HelpTopic: Identifiable {
             return isKorean
                 ? "앱 버전, 연락처, GitHub 릴리스 링크를 확인합니다."
                 : "Shows app version, contact, and GitHub release links."
+        case .uninstall:
+            return isKorean
+                ? "Launchpad에서 삭제 표시가 보이지 않는 경우에도 앱 안에서 LidStay를 제거할 수 있습니다."
+                : "Removes LidStay from inside the app even when Launchpad does not show a delete button."
         }
     }
 }
