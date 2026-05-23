@@ -18,8 +18,6 @@ enum CLIInstaller {
         if installDirectly(from: bundledURL) {
             return
         }
-
-        installWithAdministratorPrivileges(from: bundledURL)
     }
 
     private static func anyInstalledCLIMatches(bundledURL: URL) -> Bool {
@@ -52,29 +50,6 @@ enum CLIInstaller {
         } catch {
             return false
         }
-    }
-
-    private static func installWithAdministratorPrivileges(from bundledURL: URL) {
-        let command = [
-            "mkdir -p /usr/local/bin",
-            "cp \(shellQuoted(bundledURL.path)) \(shellQuoted(installURL.path))",
-            "chmod 755 \(shellQuoted(installURL.path))",
-            "(/usr/bin/xattr -d com.apple.quarantine \(shellQuoted(installURL.path)) >/dev/null 2>&1 || true)",
-        ].joined(separator: " && ")
-
-        let script = "do shell script \(appleScriptQuoted(command)) with administrator privileges"
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", script]
-        try? process.run()
-    }
-
-    private static func shellQuoted(_ value: String) -> String {
-        "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
-    }
-
-    private static func appleScriptQuoted(_ value: String) -> String {
-        "\"\(value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
     }
 
     private static func removeQuarantineAttribute(at url: URL) {
