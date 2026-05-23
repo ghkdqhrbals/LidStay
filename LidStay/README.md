@@ -20,7 +20,7 @@ The app bundle includes the `lidstay` CLI. On first launch, LidStay installs or 
 
 - `Mac 켜두기` starts or stops the current session.
 - Select a duration, then turn on `Mac 켜두기`.
-- Enter custom minutes directly in the main panel.
+- Enter custom time directly in the main panel, including seconds for testing.
 - The main tab is for choosing time and turning awake mode on or off.
 - Non-duration settings live in the Options window.
 - `전원 연결 중에만 허용` keeps the session active only while power is connected.
@@ -71,6 +71,14 @@ Uninstall:
 brew uninstall --cask lidstay
 ```
 
+Manual uninstall:
+
+```bash
+lidstay uninstall
+```
+
+Use `lidstay uninstall --purge` to also remove LidStay preferences and local Application Support data.
+
 ## CLI
 
 ```bash
@@ -78,6 +86,8 @@ lidstay on 2h
 lidstay on until-exit npm run dev
 lidstay off
 lidstay status
+lidstay notify-test
+lidstay uninstall
 ```
 
 Duration values support `s`, `m`, and `h`. A plain number is treated as minutes.

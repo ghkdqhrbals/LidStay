@@ -49,6 +49,14 @@ Uninstall:
 brew uninstall --cask lidstay
 ```
 
+Manual uninstall:
+
+```bash
+lidstay uninstall
+```
+
+Use `lidstay uninstall --purge` to also remove LidStay preferences and local Application Support data.
+
 ## CLI
 
 LidStay includes a terminal command for developer workflows:
@@ -58,6 +66,8 @@ lidstay on 2h
 lidstay on until-exit npm run dev
 lidstay off
 lidstay status
+lidstay notify-test
+lidstay uninstall
 ```
 
 Duration values support `s`, `m`, and `h`. A plain number is treated as minutes.
@@ -170,7 +180,7 @@ The user-facing install page lives at:
 docs/index.html
 ```
 
-When GitHub Pages is enabled for the `docs` folder, it gives users a simple download page with Brew as an advanced option.
+`.github/workflows/pages.yml` deploys this folder to GitHub Pages. In the GitHub repository settings, set Pages to use GitHub Actions, then push to `main` or run the workflow manually.
 
 ## Product Requirements
 

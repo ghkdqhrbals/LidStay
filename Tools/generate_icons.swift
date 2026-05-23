@@ -106,7 +106,7 @@ func drawSignatureIcon(size: CGFloat, menuBar: Bool = false) -> NSBitmapImageRep
         controlPoint1: NSPoint(x: 318 * scale, y: 712 * scale),
         controlPoint2: NSPoint(x: 706 * scale, y: 712 * scale)
     )
-    upperLid.lineWidth = menuBar ? 94 * scale : 72 * scale
+    upperLid.lineWidth = menuBar ? 94 * scale : 86 * scale
     upperLid.lineCapStyle = .round
     upperLid.stroke()
 
@@ -117,12 +117,12 @@ func drawSignatureIcon(size: CGFloat, menuBar: Bool = false) -> NSBitmapImageRep
         controlPoint1: NSPoint(x: 360 * scale, y: 298 * scale),
         controlPoint2: NSPoint(x: 664 * scale, y: 298 * scale)
     )
-    lowerLid.lineWidth = menuBar ? 70 * scale : 54 * scale
+    lowerLid.lineWidth = menuBar ? 70 * scale : 64 * scale
     lowerLid.lineCapStyle = .round
     lowerLid.stroke()
 
     if !menuBar {
-        NSColor(calibratedRed: 0.15, green: 0.78, blue: 0.48, alpha: 0.28).setStroke()
+        NSColor(calibratedRed: 0.15, green: 0.78, blue: 0.48, alpha: 0.20).setStroke()
         let glow = NSBezierPath()
         glow.move(to: NSPoint(x: 252 * scale, y: 515 * scale))
         glow.curve(
@@ -169,69 +169,69 @@ func drawAnimatedMenuBarIcon(size: CGFloat, openness: CGFloat, infinite: Bool = 
     let scale = size / 44
     let t = min(1, max(0, openness))
 
+    let eyeCenterX: CGFloat = 22.0
+    let eyeWidthScale: CGFloat = 1.0
+
+    func eyeX(_ x: CGFloat) -> CGFloat {
+        eyeCenterX + (x - 22.0) * eyeWidthScale
+    }
+
     func eyeInteriorPath() -> NSBezierPath {
         let opennessOffset = max(0.04, t)
         let path = NSBezierPath()
-        path.move(to: NSPoint(x: 7.2 * scale, y: (22.2 + 0.1 * opennessOffset) * scale))
+        path.move(to: NSPoint(x: eyeX(7.2) * scale, y: (22.2 + 0.1 * opennessOffset) * scale))
         path.curve(
-            to: NSPoint(x: 36.8 * scale, y: (22.2 + 0.1 * opennessOffset) * scale),
-            controlPoint1: NSPoint(x: 13.6 * scale, y: (15.0 + 15.1 * opennessOffset) * scale),
-            controlPoint2: NSPoint(x: 30.4 * scale, y: (15.0 + 15.1 * opennessOffset) * scale)
+            to: NSPoint(x: eyeX(36.8) * scale, y: (22.2 + 0.1 * opennessOffset) * scale),
+            controlPoint1: NSPoint(x: eyeX(13.6) * scale, y: (15.0 + 15.1 * opennessOffset) * scale),
+            controlPoint2: NSPoint(x: eyeX(30.4) * scale, y: (15.0 + 15.1 * opennessOffset) * scale)
         )
         path.curve(
-            to: NSPoint(x: 7.2 * scale, y: (22.2 + 0.1 * opennessOffset) * scale),
-            controlPoint1: NSPoint(x: 29.6 * scale, y: (22.2 - 9.6 * opennessOffset) * scale),
-            controlPoint2: NSPoint(x: 14.4 * scale, y: (22.2 - 9.6 * opennessOffset) * scale)
+            to: NSPoint(x: eyeX(7.2) * scale, y: (22.2 + 0.1 * opennessOffset) * scale),
+            controlPoint1: NSPoint(x: eyeX(29.6) * scale, y: (22.2 - 9.6 * opennessOffset) * scale),
+            controlPoint2: NSPoint(x: eyeX(14.4) * scale, y: (22.2 - 9.6 * opennessOffset) * scale)
         )
         path.close()
         return path
     }
 
-    func drawInfinityMark() {
-        let markScale: CGFloat = 0.92
-        func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
-            NSPoint(
-                x: (22.0 + (x - 22.0) * markScale) * scale,
-                y: (22.0 + (y - 22.0) * markScale) * scale
-            )
+    func drawInfinityPupil() {
+        let opacity = min(1, max(0, (t - 0.18) / 0.35))
+        guard opacity > 0 else {
+            return
         }
 
-        let mark = NSBezierPath()
-        mark.move(to: point(11.7, 22.0))
-        mark.curve(
-            to: point(22.0, 22.0),
-            controlPoint1: point(14.2, 29.6),
-            controlPoint2: point(18.4, 29.6)
-        )
-        mark.curve(
-            to: point(32.3, 22.0),
-            controlPoint1: point(25.6, 14.4),
-            controlPoint2: point(29.8, 14.4)
-        )
-        mark.curve(
-            to: point(22.0, 22.0),
-            controlPoint1: point(29.8, 29.6),
-            controlPoint2: point(25.6, 29.6)
-        )
-        mark.curve(
-            to: point(11.7, 22.0),
-            controlPoint1: point(18.4, 14.4),
-            controlPoint2: point(14.2, 14.4)
-        )
-        mark.lineWidth = 2.45 * scale
-        mark.lineCapStyle = .round
-        mark.lineJoinStyle = .round
-        mark.stroke()
+        NSColor.labelColor.withAlphaComponent(0.95 * opacity).setFill()
+        eyeInteriorPath().fill()
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current?.compositingOperation = .destinationOut
+        NSColor.white.withAlphaComponent(opacity).setFill()
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 17.2 * scale, weight: .heavy),
+            .foregroundColor: NSColor.white.withAlphaComponent(opacity),
+            .paragraphStyle: paragraphStyle,
+            .kern: -0.4 * scale,
+        ]
+        NSAttributedString(string: "∞", attributes: attributes).draw(in: NSRect(
+            x: 8.0 * scale,
+            y: 10.9 * scale,
+            width: 28.0 * scale,
+            height: 22.0 * scale
+        ))
+        NSGraphicsContext.restoreGraphicsState()
     }
 
     func drawLids() {
         if t <= 0.01 {
             let closedLid = NSBezierPath()
-            closedLid.move(to: NSPoint(x: 5.2 * scale, y: 22.2 * scale))
+            closedLid.move(to: NSPoint(x: eyeX(5.2) * scale, y: 22.2 * scale))
             closedLid.curve(
-                to: NSPoint(x: 38.8 * scale, y: 22.2 * scale),
-                controlPoint1: NSPoint(x: 13.2 * scale, y: 15.0 * scale),
-                controlPoint2: NSPoint(x: 30.8 * scale, y: 15.0 * scale)
+                to: NSPoint(x: eyeX(38.8) * scale, y: 22.2 * scale),
+                controlPoint1: NSPoint(x: eyeX(13.2) * scale, y: 15.0 * scale),
+                controlPoint2: NSPoint(x: eyeX(30.8) * scale, y: 15.0 * scale)
             )
             closedLid.lineWidth = 3.0 * scale
             closedLid.lineCapStyle = .round
@@ -240,33 +240,30 @@ func drawAnimatedMenuBarIcon(size: CGFloat, openness: CGFloat, infinite: Bool = 
         }
 
         let upperLid = NSBezierPath()
-        upperLid.move(to: NSPoint(x: 4.2 * scale, y: (22.2 + 0.3 * t) * scale))
+        upperLid.move(to: NSPoint(x: eyeX(4.2) * scale, y: (22.2 + 0.3 * t) * scale))
         upperLid.curve(
-            to: NSPoint(x: 39.8 * scale, y: (22.2 + 0.3 * t) * scale),
-            controlPoint1: NSPoint(x: 12.4 * scale, y: (15.0 + 16.0 * t) * scale),
-            controlPoint2: NSPoint(x: 31.6 * scale, y: (15.0 + 16.0 * t) * scale)
+            to: NSPoint(x: eyeX(39.8) * scale, y: (22.2 + 0.3 * t) * scale),
+            controlPoint1: NSPoint(x: eyeX(12.4) * scale, y: (15.0 + 16.0 * t) * scale),
+            controlPoint2: NSPoint(x: eyeX(31.6) * scale, y: (15.0 + 16.0 * t) * scale)
         )
         upperLid.lineWidth = 3.0 * scale
         upperLid.lineCapStyle = .round
         upperLid.stroke()
 
         let lowerLid = NSBezierPath()
-        lowerLid.move(to: NSPoint(x: 7.8 * scale, y: (22.2 + 2.8 * t) * scale))
+        lowerLid.move(to: NSPoint(x: eyeX(7.8) * scale, y: (22.2 + 2.8 * t) * scale))
         lowerLid.curve(
-            to: NSPoint(x: 36.2 * scale, y: (22.2 + 2.8 * t) * scale),
-            controlPoint1: NSPoint(x: 14.8 * scale, y: (22.2 - 10.4 * t) * scale),
-            controlPoint2: NSPoint(x: 29.2 * scale, y: (22.2 - 10.4 * t) * scale)
+            to: NSPoint(x: eyeX(36.2) * scale, y: (22.2 + 2.8 * t) * scale),
+            controlPoint1: NSPoint(x: eyeX(14.8) * scale, y: (22.2 - 10.4 * t) * scale),
+            controlPoint2: NSPoint(x: eyeX(29.2) * scale, y: (22.2 - 10.4 * t) * scale)
         )
         lowerLid.lineWidth = (1.4 + 0.8 * t) * scale
         lowerLid.lineCapStyle = .round
         lowerLid.stroke()
     }
 
-    if infinite, t > 0.18 {
-        NSGraphicsContext.saveGraphicsState()
-        eyeInteriorPath().setClip()
-        drawInfinityMark()
-        NSGraphicsContext.restoreGraphicsState()
+    if infinite {
+        drawInfinityPupil()
     }
     drawLids()
 

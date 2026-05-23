@@ -4,6 +4,9 @@ set -euo pipefail
 APP_BUNDLE_ID="com.ghkdqhrbals.LidStay"
 COMMAND_NOTIFICATION="com.ghkdqhrbals.LidStay.cli.command"
 STATUS_FILE="$HOME/Library/Application Support/LidStay/status.json"
+LOGIN_ITEM_PLIST="$HOME/Library/LaunchAgents/com.ghkdqhrbals.LidStay.loginitem.plist"
+APP_PATH="/Applications/LidStay.app"
+CLI_PATH="/usr/local/bin/lidstay"
 
 usage() {
   cat <<'USAGE'
@@ -12,6 +15,8 @@ Usage:
   lidstay on until-exit <command...>
   lidstay off
   lidstay status
+  lidstay notify-test
+  lidstay uninstall [--yes] [--purge]
 
 Examples:
   lidstay on 2h
@@ -19,11 +24,17 @@ Examples:
   lidstay on until-exit npm run dev
   lidstay off
   lidstay status
+  lidstay notify-test
+  lidstay uninstall
 USAGE
 }
 
 ensure_app_running() {
-  /usr/bin/open -gj -b "$APP_BUNDLE_ID" >/dev/null 2>&1 || true
+  if [[ -n "${LIDSTAY_APP_PATH:-}" ]]; then
+    /usr/bin/open -gj "$LIDSTAY_APP_PATH" >/dev/null 2>&1 || true
+  else
+    /usr/bin/open -gj -b "$APP_BUNDLE_ID" >/dev/null 2>&1 || true
+  fi
   sleep 0.35
 }
 
@@ -106,6 +117,58 @@ function run(argv) {
 ' "$STATUS_FILE"
 }
 
+uninstall_lidstay() {
+  local assume_yes=0
+  local purge=0
+
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      --yes|-y)
+        assume_yes=1
+        ;;
+      --purge)
+        purge=1
+        ;;
+      *)
+        echo "Unknown uninstall option: $1" >&2
+        echo "Use: lidstay uninstall [--yes] [--purge]" >&2
+        exit 64
+        ;;
+    esac
+    shift
+  done
+
+  if [[ "$assume_yes" -ne 1 ]]; then
+    echo "This will remove:"
+    echo "  $APP_PATH"
+    echo "  $CLI_PATH"
+    echo "  $LOGIN_ITEM_PLIST"
+    echo "  $STATUS_FILE"
+    if [[ "$purge" -eq 1 ]]; then
+      echo "  LidStay preferences and Application Support data"
+    fi
+    local reply
+    read -r "reply?Remove LidStay? [y/N] "
+    if [[ ! "$reply" =~ '^[Yy]' ]]; then
+      echo "Uninstall cancelled."
+      exit 0
+    fi
+  fi
+
+  /usr/bin/osascript -e "tell application id \"$APP_BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
+  /bin/launchctl bootout "gui/$(/usr/bin/id -u)" "$LOGIN_ITEM_PLIST" >/dev/null 2>&1 || true
+  /bin/rm -f "$LOGIN_ITEM_PLIST" "$STATUS_FILE"
+
+  if [[ "$purge" -eq 1 ]]; then
+    /usr/bin/defaults delete "$APP_BUNDLE_ID" >/dev/null 2>&1 || true
+    /bin/rm -rf "$HOME/Library/Application Support/LidStay"
+    /bin/rm -rf "$HOME/Library/Caches/$APP_BUNDLE_ID"
+  fi
+
+  /usr/bin/osascript -e 'do shell script "/bin/rm -rf /Applications/LidStay.app /usr/local/bin/lidstay" with administrator privileges'
+  echo "LidStay removed."
+}
+
 command="${1:-}"
 case "$command" in
   on)
@@ -139,6 +202,15 @@ case "$command" in
     ;;
   status)
     print_status
+    ;;
+  notify-test|test-notification)
+    ensure_app_running
+    post_command notify-test
+    echo "LidStay notification test sent"
+    ;;
+  uninstall)
+    shift
+    uninstall_lidstay "$@"
     ;;
   -h|--help|help|"")
     usage
