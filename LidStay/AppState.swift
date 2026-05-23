@@ -76,6 +76,7 @@ final class AppState: ObservableObject {
     @Published private(set) var sessionEndDate: Date?
     @Published private(set) var now = Date()
     @Published private var menuBarIconAnimationName: String?
+    @Published private var frozenMenuBarIconName: String?
     @Published var durationMinutesText: String {
         didSet {
             defaults.set(durationMinutesText, forKey: DefaultsKey.durationMinutesText)
@@ -105,6 +106,7 @@ final class AppState: ObservableObject {
     private var iconAnimationTask: Task<Void, Never>?
     private var iconMotionTask: Task<Void, Never>?
     private var iconMotionInfinite: Bool?
+    private var isMenuBarMenuOpen = false
     private var cliCommandObserver: NSObjectProtocol?
     @Published private(set) var notificationAuthorizationStatus: UNAuthorizationStatus = .notDetermined
 
@@ -226,6 +228,14 @@ final class AppState: ObservableObject {
     }
 
     var menuBarIconName: String {
+        if let frozenMenuBarIconName {
+            return frozenMenuBarIconName
+        }
+
+        return resolvedMenuBarIconName
+    }
+
+    private var resolvedMenuBarIconName: String {
         if let menuBarIconAnimationName {
             return menuBarIconAnimationName
         }
@@ -601,6 +611,18 @@ final class AppState: ObservableObject {
         isSleepPreventionEnabled = enabled
     }
 
+    func menuBarMenuDidOpen() {
+        isMenuBarMenuOpen = true
+        frozenMenuBarIconName = resolvedMenuBarIconName
+        pauseMenuBarMotion()
+    }
+
+    func menuBarMenuDidClose() {
+        isMenuBarMenuOpen = false
+        frozenMenuBarIconName = nil
+        syncMenuBarMotion()
+    }
+
     func startSession(duration: TimeInterval?) {
         if let duration {
             sessionEndDate = Date().addingTimeInterval(duration)
@@ -880,6 +902,11 @@ final class AppState: ObservableObject {
         stopMenuBarMotion()
         iconAnimationTask?.cancel()
 
+        guard !isMenuBarMenuOpen else {
+            iconAnimationTask = nil
+            return
+        }
+
         let frameIndexes = opening ? Array(0...4) : Array((0...4).reversed())
         let prefix = infinite ? "MenuBarIconInfiniteFrame" : "MenuBarIconFrame"
         let frames = frameIndexes.map { "\(prefix)\($0)" }
@@ -901,6 +928,11 @@ final class AppState: ObservableObject {
     }
 
     private func syncMenuBarMotion() {
+        guard !isMenuBarMenuOpen else {
+            pauseMenuBarMotion()
+            return
+        }
+
         guard isSleepPreventionEnabled, assertionState == .active else {
             stopMenuBarMotion()
             return
@@ -946,6 +978,12 @@ final class AppState: ObservableObject {
         if iconAnimationTask == nil {
             menuBarIconAnimationName = nil
         }
+    }
+
+    private func pauseMenuBarMotion() {
+        iconMotionTask?.cancel()
+        iconMotionTask = nil
+        iconMotionInfinite = nil
     }
 
     private func startCLICommandObserver() {
