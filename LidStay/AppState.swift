@@ -960,9 +960,7 @@ final class AppState: ObservableObject {
         iconMotionTask?.cancel()
         iconMotionInfinite = infinite
         let prefix = infinite ? "MenuBarIconInfiniteFrame" : "MenuBarIconFrame"
-        let forwardFrames = (0...4).map { "\(prefix)\($0)" }
-        let returnFrames = (1...3).reversed().map { "\(prefix)\($0)" }
-        let frames = forwardFrames + returnFrames
+        let frames = (0...4).map { "\(prefix)\($0)" }
 
         iconMotionTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {

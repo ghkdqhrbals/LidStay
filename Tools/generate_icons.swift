@@ -531,14 +531,16 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
     rect.fill()
 
     let unit = size / 22
-    let hop = active ? Int(round(sin(max(0, min(1, phase)) * .pi) * 3)) : 0
-    let lean = active ? Int(round((phase - 0.5) * 2)) : 0
-    let yOffset = hop
+    let t = max(0, min(1, phase))
+    let xOffset = active ? Int(round((t - 0.5) * 6)) : 0
+    let yOffset = active ? (t == 0.25 || t == 0.75 ? 1 : 0) : 0
+    let stretched = active && (t == 0 || t == 1)
+    let tucked = active && t == 0.5
 
     func block(_ x: Int, _ y: Int, _ w: Int = 1, _ h: Int = 1) {
         NSColor.labelColor.setFill()
         NSRect(
-            x: CGFloat(x + lean) * unit,
+            x: CGFloat(x + xOffset) * unit,
             y: CGFloat(22 - y - h + yOffset) * unit,
             width: CGFloat(w) * unit,
             height: CGFloat(h) * unit
@@ -550,7 +552,7 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
         NSGraphicsContext.current?.compositingOperation = .destinationOut
         NSColor.white.setFill()
         NSRect(
-            x: CGFloat(x + lean) * unit,
+            x: CGFloat(x + xOffset) * unit,
             y: CGFloat(22 - y - h + yOffset) * unit,
             width: CGFloat(w) * unit,
             height: CGFloat(h) * unit
@@ -558,18 +560,35 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
         NSGraphicsContext.restoreGraphicsState()
     }
 
+    if active {
+        let trailAlpha: CGFloat = tucked ? 0.42 : 0.28
+        NSColor.labelColor.withAlphaComponent(trailAlpha).setFill()
+        NSRect(x: CGFloat(1 + xOffset) * unit, y: CGFloat(22 - 15) * unit, width: 3 * unit, height: unit).fill()
+        if stretched {
+            NSRect(x: CGFloat(2 + xOffset) * unit, y: CGFloat(22 - 12) * unit, width: 2 * unit, height: unit).fill()
+        }
+    }
+
     block(7, 3, 2, 5)
     block(13, 3, 2, 5)
     block(6, 8, 10, 1)
-    block(5, 9, 12, 5)
-    block(6, 14, 10, 2)
-    block(8, 16, 6, 1)
-    block(4, 12, 2, 2)
-    block(16, 12, 3, 2)
+    block(5, 9, 12, 4)
+    block(6, 13, 10, 2)
+    block(8, 15, 6, 1)
+    block(4, 11, 2, 2)
+    block(16, 11, 3, 2)
 
-    if active, hop > 0 {
-        block(5, 17, 4, 1)
-        block(13, 17, 4, 1)
+    if stretched {
+        block(2, 15, 7, 1)
+        block(13, 16, 7, 1)
+    } else if tucked {
+        block(6, 16, 4, 1)
+        block(12, 16, 4, 1)
+        block(8, 17, 2, 1)
+        block(12, 17, 2, 1)
+    } else if active {
+        block(4, 16, 5, 1)
+        block(13, 15, 5, 1)
     } else {
         block(4, 16, 5, 1)
         block(13, 16, 5, 1)
