@@ -3,6 +3,17 @@ import SwiftUI
 struct AboutView: View {
     let language: AppLanguage
 
+    private var versionText: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.2"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+
+        if let build, !build.isEmpty {
+            return language == .korean ? "버전 \(version) (\(build))" : "Version \(version) (\(build))"
+        }
+
+        return language == .korean ? "버전 \(version)" : "Version \(version)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 14) {
@@ -46,7 +57,7 @@ struct AboutView: View {
             Spacer()
 
             HStack {
-                Text(language == .korean ? "버전 1.0" : "Version 1.0")
+                Text(versionText)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button(language == .korean ? "완료" : "Done") {
