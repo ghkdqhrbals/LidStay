@@ -130,13 +130,13 @@ final class UpdateController: NSObject, ObservableObject {
 
         if !allowsAutomaticUpdates {
             return automaticallyChecksForUpdates
-                ? (language == .korean ? "새 버전 자동 확인" : "Checks automatically")
-                : (language == .korean ? "직접 확인" : "Manual checks")
+                ? (language == .korean ? "자동 업데이트 켜짐" : "Automatic updates on")
+                : (language == .korean ? "자동 업데이트 꺼짐" : "Automatic updates off")
         }
 
         return automaticUpdatesEnabled
-            ? (language == .korean ? "새 버전 자동 설치" : "Installs updates automatically")
-            : (language == .korean ? "직접 확인 후 설치" : "Ask before installing")
+            ? (language == .korean ? "자동 업데이트 켜짐" : "Automatic updates on")
+            : (language == .korean ? "자동 업데이트 꺼짐" : "Automatic updates off")
     }
 
     private func openReleasePage() {

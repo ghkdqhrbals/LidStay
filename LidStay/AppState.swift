@@ -644,8 +644,8 @@ final class AppState: ObservableObject {
         let alert = NSAlert()
         alert.messageText = language == .korean ? "LidStay를 제거할까요?" : "Remove LidStay?"
         alert.informativeText = language == .korean
-            ? "앱과 터미널 명령어를 제거합니다. 관리자 권한을 요청할 수 있습니다."
-            : "This removes the app and command line tool. macOS may ask for administrator permission."
+            ? "앱과 터미널 명령어를 제거합니다. 권한이 필요한 항목이 있으면 macOS가 관리자 권한을 요청합니다."
+            : "This removes the app and command line tool. macOS asks for administrator permission only if required."
         alert.alertStyle = .warning
         alert.addButton(withTitle: language == .korean ? "제거" : "Remove")
         alert.addButton(withTitle: language == .korean ? "취소" : "Cancel")
@@ -659,22 +659,69 @@ final class AppState: ObservableObject {
     }
 
     private func uninstall() {
-        let script = [
+        shutdown()
+
+        let script = Self.uninstallScript()
+        if Self.runShellScript(script) || Self.runShellScriptWithAdministratorPrivileges(script) {
+            showUninstallCompletedAlert()
+            NSApplication.shared.terminate(nil)
+        } else {
+            showUninstallFailedAlert()
+        }
+    }
+
+    private func showUninstallCompletedAlert() {
+        let alert = NSAlert()
+        alert.messageText = language == .korean ? "제거 완료" : "Removed"
+        alert.informativeText = language == .korean
+            ? "그동안 LidStay를 사용해주셔서 감사합니다."
+            : "Thank you for using LidStay."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: language == .korean ? "종료" : "Quit")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
+    }
+
+    private func showUninstallFailedAlert() {
+        let alert = NSAlert()
+        alert.messageText = language == .korean ? "제거하지 못했습니다" : "Could not remove LidStay"
+        alert.informativeText = language == .korean
+            ? "앱 또는 터미널 명령어를 삭제할 권한이 없습니다."
+            : "LidStay does not have permission to delete the app or command line tool."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: language == .korean ? "확인" : "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
+    }
+
+    private static func uninstallScript() -> String {
+        [
             "/bin/launchctl bootout gui/$(/usr/bin/id -u) \(Self.shellQuoted(LoginItemController.plistURL.path)) >/dev/null 2>&1 || true",
             "/bin/rm -f \(Self.shellQuoted(LoginItemController.plistURL.path))",
             "/bin/rm -f \(Self.shellQuoted(Self.cliStatusURL.path))",
             "/usr/sbin/pkgutil --forget com.ghkdqhrbals.LidStay.pkg >/dev/null 2>&1 || true",
             "/bin/rm -rf /Applications/LidStay.app /usr/local/bin/lidstay",
         ].joined(separator: "\n")
+    }
 
+    private static func runShellScript(_ script: String) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-c", script]
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+
+    private static func runShellScriptWithAdministratorPrivileges(_ script: String) -> Bool {
         let appleScript = "do shell script \(Self.appleScriptQuoted(script)) with administrator privileges"
         var error: NSDictionary?
         NSAppleScript(source: appleScript)?.executeAndReturnError(&error)
-
-        if error == nil {
-            shutdown()
-            NSApplication.shared.terminate(nil)
-        }
+        return error == nil
     }
 
     func selectDuration(_ option: DurationOption) {
