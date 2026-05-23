@@ -5,12 +5,6 @@ struct AboutView: View {
 
     private var versionText: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.2"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-
-        if let build, !build.isEmpty {
-            return language == .korean ? "버전 \(version) (\(build))" : "Version \(version) (\(build))"
-        }
-
         return language == .korean ? "버전 \(version)" : "Version \(version)"
     }
 
