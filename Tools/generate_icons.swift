@@ -468,7 +468,12 @@ func drawPixelRabbitAppIcon(size: CGFloat) -> NSBitmapImageRep {
     let unit = size / 16
     func block(_ x: Int, _ y: Int, _ w: Int = 1, _ h: Int = 1, color: NSColor) {
         color.setFill()
-        NSRect(x: CGFloat(x) * unit, y: CGFloat(y) * unit, width: CGFloat(w) * unit, height: CGFloat(h) * unit).fill()
+        NSRect(
+            x: CGFloat(x) * unit,
+            y: CGFloat(16 - y - h) * unit,
+            width: CGFloat(w) * unit,
+            height: CGFloat(h) * unit
+        ).fill()
     }
 
     let green = NSColor(calibratedRed: 0.20, green: 0.96, blue: 0.58, alpha: 1)
@@ -534,7 +539,7 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
         NSColor.labelColor.setFill()
         NSRect(
             x: CGFloat(x + lean) * unit,
-            y: CGFloat(y + yOffset) * unit,
+            y: CGFloat(22 - y - h + yOffset) * unit,
             width: CGFloat(w) * unit,
             height: CGFloat(h) * unit
         ).fill()
@@ -546,7 +551,7 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
         NSColor.white.setFill()
         NSRect(
             x: CGFloat(x + lean) * unit,
-            y: CGFloat(y + yOffset) * unit,
+            y: CGFloat(22 - y - h + yOffset) * unit,
             width: CGFloat(w) * unit,
             height: CGFloat(h) * unit
         ).fill()

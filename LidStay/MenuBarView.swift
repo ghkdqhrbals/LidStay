@@ -57,12 +57,6 @@ struct MenuBarView: View {
                 NSApplication.shared.terminate(nil)
             }
         }
-        .onAppear {
-            appState.menuBarMenuDidOpen()
-        }
-        .onDisappear {
-            appState.menuBarMenuDidClose()
-        }
     }
 
     private var statusItem: some View {
