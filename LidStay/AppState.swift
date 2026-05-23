@@ -803,9 +803,7 @@ final class AppState: ObservableObject {
 
     func requestNotificationPermission() {
         notificationController.requestAuthorizationOrOpenSettings { didOpenSettings in
-            if didOpenSettings {
-                OptionsWindowController.shared.keepVisibleWhileSystemSettingsIsOpen()
-            } else {
+            if !didOpenSettings {
                 OptionsWindowController.shared.bringForwardIfVisible()
             }
         }
@@ -813,7 +811,6 @@ final class AppState: ObservableObject {
 
     func openNotificationSettings() {
         notificationController.openSettings()
-        OptionsWindowController.shared.keepVisibleWhileSystemSettingsIsOpen()
     }
 
     func refreshLaunchAtLoginStatus() {

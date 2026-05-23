@@ -5,7 +5,7 @@ import SwiftUI
 final class OptionsWindowController {
     static let shared = OptionsWindowController()
 
-    private var window: NSPanel?
+    private var window: NSWindow?
 
     func show(appState: AppState) {
         let title = appState.language == .korean ? "LidStay 옵션" : "LidStay Options"
@@ -21,20 +21,18 @@ final class OptionsWindowController {
             return
         }
 
-        let window = NSPanel(
+        let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 430),
-            styleMask: [.titled, .closable, .utilityWindow],
+            styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         window.title = title
         window.contentView = NSHostingView(rootView: rootView)
         window.center()
-        window.hidesOnDeactivate = false
-        window.isFloatingPanel = true
         window.isReleasedWhenClosed = false
-        window.level = .floating
-        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        window.canHide = false
+        window.collectionBehavior = [.moveToActiveSpace]
         self.window = window
 
         window.makeKeyAndOrderFront(nil)
@@ -48,17 +46,5 @@ final class OptionsWindowController {
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-    }
-
-    func keepVisibleWhileSystemSettingsIsOpen() {
-        for delay in [0.2, 0.8, 1.6, 3.0] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                guard let window = self?.window, window.isVisible else {
-                    return
-                }
-
-                window.orderFrontRegardless()
-            }
-        }
     }
 }
