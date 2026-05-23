@@ -74,6 +74,31 @@ final class UpdateController: NSObject, ObservableObject {
         #endif
     }
 
+    func setAutomaticUpdates(_ enabled: Bool) {
+        #if canImport(Sparkle)
+        guard let updater = updaterController?.updater else {
+            return
+        }
+
+        if enabled {
+            updater.automaticallyChecksForUpdates = true
+            if updater.allowsAutomaticUpdates {
+                updater.automaticallyDownloadsUpdates = true
+            }
+        } else {
+            if updater.allowsAutomaticUpdates {
+                updater.automaticallyDownloadsUpdates = false
+            }
+            updater.automaticallyChecksForUpdates = false
+        }
+        sync(from: updater)
+        #endif
+    }
+
+    var automaticUpdatesEnabled: Bool {
+        automaticallyChecksForUpdates && automaticallyDownloadsUpdates
+    }
+
     func statusTitle(language: AppLanguage) -> String {
         if !isConfigured {
             return language == .korean ? "릴리스 설정 필요" : "Release setup required"
@@ -96,6 +121,22 @@ final class UpdateController: NSObject, ObservableObject {
         return automaticallyDownloadsUpdates
             ? (language == .korean ? "가능하면 자동 설치" : "Installs when possible")
             : (language == .korean ? "확인 후 설치" : "Ask before installing")
+    }
+
+    func automaticUpdatesTitle(language: AppLanguage) -> String {
+        if !isConfigured {
+            return language == .korean ? "릴리스 설정 필요" : "Release setup required"
+        }
+
+        if !allowsAutomaticUpdates {
+            return automaticallyChecksForUpdates
+                ? (language == .korean ? "새 버전 자동 확인" : "Checks automatically")
+                : (language == .korean ? "직접 확인" : "Manual checks")
+        }
+
+        return automaticUpdatesEnabled
+            ? (language == .korean ? "새 버전 자동 설치" : "Installs updates automatically")
+            : (language == .korean ? "직접 확인 후 설치" : "Ask before installing")
     }
 
     private func openReleasePage() {

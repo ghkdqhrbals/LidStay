@@ -117,6 +117,9 @@ jobs:
       - name: Build notarized zip
         run: ./packaging/build-notarized-zip.sh
 
+      - name: Build notarized dmg
+        run: ./packaging/build-notarized-dmg.sh
+
       - name: Generate Sparkle appcast
         env:
           SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
@@ -140,6 +143,7 @@ jobs:
             gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes "LidStay $RELEASE_TAG"
           fi
           artifacts=(
+            dist/LidStay.dmg
             dist/LidStay.zip
             dist/updates/appcast.xml
             dist/updates/LidStay-*.zip

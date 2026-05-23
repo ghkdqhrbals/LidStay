@@ -82,9 +82,6 @@ struct OptionsView: View {
                             appState.requestNotificationPermission()
                         }
                         .disabled(!appState.canRequestNotificationPermission)
-                        Button(appState.notificationTestButtonTitle) {
-                            appState.sendTestNotification()
-                        }
                         Text(appState.notificationStatusTitle)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -111,26 +108,12 @@ struct OptionsView: View {
                 optionRow(title: isKorean ? "자동 업데이트" : "Auto Update", topic: .automaticUpdates) {
                     HStack(spacing: 10) {
                         Toggle("", isOn: Binding(
-                            get: { updateController.automaticallyChecksForUpdates },
-                            set: { updateController.setAutomaticallyChecksForUpdates($0) }
+                            get: { updateController.automaticUpdatesEnabled },
+                            set: { updateController.setAutomaticUpdates($0) }
                         ))
                         .labelsHidden()
                         .disabled(!updateController.isConfigured)
-                        Text(isKorean ? "새 버전 자동 확인" : "Check automatically")
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                optionRow(title: isKorean ? "자동 설치" : "Auto Install", topic: .automaticInstall) {
-                    HStack(spacing: 10) {
-                        Toggle("", isOn: Binding(
-                            get: { updateController.automaticallyDownloadsUpdates },
-                            set: { updateController.setAutomaticallyDownloadsUpdates($0) }
-                        ))
-                        .labelsHidden()
-                        .disabled(!updateController.isConfigured || !updateController.automaticallyChecksForUpdates || !updateController.allowsAutomaticUpdates)
-                        Text(updateController.automaticInstallTitle(language: appState.language))
+                        Text(updateController.automaticUpdatesTitle(language: appState.language))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -175,7 +158,7 @@ struct OptionsView: View {
             Spacer(minLength: 0)
         }
         .padding(22)
-        .frame(width: 520, height: 510)
+        .frame(width: 520, height: 468)
         .popover(item: $helpTopic) { topic in
             VStack(alignment: .leading, spacing: 8) {
                 Text(topic.title(isKorean: isKorean))
@@ -280,7 +263,6 @@ private enum HelpTopic: Identifiable {
     case notifications
     case updates
     case automaticUpdates
-    case automaticInstall
     case language
     case about
     case uninstall
@@ -303,8 +285,6 @@ private enum HelpTopic: Identifiable {
             return isKorean ? "업데이트" : "Updates"
         case .automaticUpdates:
             return isKorean ? "자동 업데이트" : "Automatic updates"
-        case .automaticInstall:
-            return isKorean ? "자동 설치" : "Automatic install"
         case .language:
             return isKorean ? "언어" : "Language"
         case .about:
@@ -342,12 +322,8 @@ private enum HelpTopic: Identifiable {
                 : "Checks for a new version now. Before release setup is complete, this opens GitHub Releases."
         case .automaticUpdates:
             return isKorean
-                ? "켜두면 LidStay가 백그라운드에서 새 버전을 자동으로 확인합니다."
-                : "When enabled, LidStay checks for new versions in the background."
-        case .automaticInstall:
-            return isKorean
-                ? "켜두면 가능한 업데이트를 자동으로 내려받고 설치합니다. 권한이 필요하면 macOS가 확인을 요청할 수 있습니다."
-                : "When enabled, LidStay downloads and installs updates when possible. macOS may still ask when authorization is required."
+                ? "켜두면 새 버전을 자동으로 확인하고 가능한 경우 자동으로 설치합니다. 권한이 필요하면 macOS가 확인을 요청할 수 있습니다."
+                : "When enabled, LidStay checks for updates and installs them automatically when possible. macOS may still ask when authorization is required."
         case .language:
             return isKorean
                 ? "메뉴와 옵션 창의 표시 언어를 바꿉니다."
