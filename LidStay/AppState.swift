@@ -808,11 +808,14 @@ final class AppState: ObservableObject {
     }
 
     func requestNotificationPermission() {
-        notificationController.requestAuthorization()
+        notificationController.requestAuthorization {
+            OptionsWindowController.shared.bringForwardIfVisible()
+        }
     }
 
     func openNotificationSettings() {
         notificationController.openSettings()
+        OptionsWindowController.shared.bringForwardIfVisible()
     }
 
     func refreshLaunchAtLoginStatus() {
@@ -1133,7 +1136,7 @@ private final class AppNotificationController: NSObject, UNUserNotificationCente
         }
     }
 
-    func requestAuthorization() {
+    func requestAuthorization(completion: (() -> Void)? = nil) {
         center.getNotificationSettings { [weak self] settings in
             guard let self else {
                 return
@@ -1141,11 +1144,17 @@ private final class AppNotificationController: NSObject, UNUserNotificationCente
 
             guard settings.authorizationStatus == .notDetermined else {
                 self.refreshAuthorizationStatus()
+                DispatchQueue.main.async {
+                    completion?()
+                }
                 return
             }
 
             self.center.requestAuthorization(options: [.alert, .sound]) { [weak self] _, _ in
                 self?.refreshAuthorizationStatus()
+                DispatchQueue.main.async {
+                    completion?()
+                }
             }
         }
     }

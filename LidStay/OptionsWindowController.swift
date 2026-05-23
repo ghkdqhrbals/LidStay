@@ -30,8 +30,19 @@ final class OptionsWindowController {
         window.title = title
         window.contentView = NSHostingView(rootView: rootView)
         window.center()
+        window.hidesOnDeactivate = false
         window.isReleasedWhenClosed = false
+        window.collectionBehavior = [.moveToActiveSpace]
         self.window = window
+
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func bringForwardIfVisible() {
+        guard let window, window.isVisible else {
+            return
+        }
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
