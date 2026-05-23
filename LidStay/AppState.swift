@@ -107,8 +107,6 @@ final class AppState: ObservableObject {
     private var iconMotionTask: Task<Void, Never>?
     private var iconMotionInfinite: Bool?
     private var isMenuBarMenuOpen = false
-    private var menuBeginTrackingObserver: NSObjectProtocol?
-    private var menuEndTrackingObserver: NSObjectProtocol?
     private var cliCommandObserver: NSObjectProtocol?
     @Published private(set) var notificationAuthorizationStatus: UNAuthorizationStatus = .notDetermined
 
@@ -152,7 +150,6 @@ final class AppState: ObservableObject {
             setLaunchAtLogin(true)
         }
         refreshAssertion()
-        startMenuTrackingObservers()
         startCLICommandObserver()
         writeCLIStatus()
     }
@@ -600,12 +597,6 @@ final class AppState: ObservableObject {
         iconAnimationTask?.cancel()
         assertionController.release()
         powerSourceMonitor.stop()
-        if let menuBeginTrackingObserver {
-            NotificationCenter.default.removeObserver(menuBeginTrackingObserver)
-        }
-        if let menuEndTrackingObserver {
-            NotificationCenter.default.removeObserver(menuEndTrackingObserver)
-        }
         if let cliCommandObserver {
             DistributedNotificationCenter.default().removeObserver(cliCommandObserver)
         }
@@ -973,9 +964,9 @@ final class AppState: ObservableObject {
                         return
                     }
                     self?.menuBarIconAnimationName = frame
-                    try? await Task.sleep(nanoseconds: 95_000_000)
+                    try? await Task.sleep(nanoseconds: 380_000_000)
                 }
-                try? await Task.sleep(nanoseconds: 520_000_000)
+                try? await Task.sleep(nanoseconds: 2_080_000_000)
             }
         }
     }
@@ -993,28 +984,6 @@ final class AppState: ObservableObject {
         iconMotionTask?.cancel()
         iconMotionTask = nil
         iconMotionInfinite = nil
-    }
-
-    private func startMenuTrackingObservers() {
-        menuBeginTrackingObserver = NotificationCenter.default.addObserver(
-            forName: NSMenu.didBeginTrackingNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.menuBarMenuDidOpen()
-            }
-        }
-
-        menuEndTrackingObserver = NotificationCenter.default.addObserver(
-            forName: NSMenu.didEndTrackingNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.menuBarMenuDidClose()
-            }
-        }
     }
 
     private func startCLICommandObserver() {
