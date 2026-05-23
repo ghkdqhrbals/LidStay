@@ -418,20 +418,7 @@ final class AppState: ObservableObject {
         language == .korean ? "테스트" : "Test"
     }
     var notificationPermissionButtonTitle: String {
-        switch notificationAuthorizationStatus {
-        case .notDetermined:
-            return language == .korean ? "권한 요청" : "Allow"
-        case .denied:
-            return language == .korean ? "설정 열기" : "Open Settings"
-        default:
-            return language == .korean ? "알림 설정" : "Notification Settings"
-        }
-    }
-    var notificationSettingsButtonTitle: String {
-        language == .korean ? "설정" : "Settings"
-    }
-    var canRequestNotificationPermission: Bool {
-        notificationAuthorizationStatus == .notDetermined
+        language == .korean ? "알림 설정" : "Notification Settings"
     }
     var isNotificationDenied: Bool {
         notificationAuthorizationStatus == .denied
@@ -815,7 +802,7 @@ final class AppState: ObservableObject {
     }
 
     func requestNotificationPermission() {
-        notificationController.requestAuthorization {
+        notificationController.requestAuthorizationOrOpenSettings {
             OptionsWindowController.shared.bringForwardIfVisible()
         }
     }
@@ -1143,7 +1130,7 @@ private final class AppNotificationController: NSObject, UNUserNotificationCente
         }
     }
 
-    func requestAuthorization(completion: (() -> Void)? = nil) {
+    func requestAuthorizationOrOpenSettings(completion: (() -> Void)? = nil) {
         center.getNotificationSettings { [weak self] settings in
             guard let self else {
                 return
@@ -1152,6 +1139,7 @@ private final class AppNotificationController: NSObject, UNUserNotificationCente
             guard settings.authorizationStatus == .notDetermined else {
                 self.refreshAuthorizationStatus()
                 DispatchQueue.main.async {
+                    self.openSettings()
                     completion?()
                 }
                 return

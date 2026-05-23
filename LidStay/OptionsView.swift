@@ -79,11 +79,7 @@ struct OptionsView: View {
                 optionRow(title: isKorean ? "알림" : "Alerts") {
                     HStack(spacing: 10) {
                         Button(appState.notificationPermissionButtonTitle) {
-                            if appState.canRequestNotificationPermission {
-                                appState.requestNotificationPermission()
-                            } else {
-                                appState.openNotificationSettings()
-                            }
+                            appState.requestNotificationPermission()
                         }
                     }
                 }
