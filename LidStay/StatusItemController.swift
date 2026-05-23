@@ -119,7 +119,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(makeItem(title: appState.optionsTitle, action: #selector(showOptions)))
-        menu.addItem(makeItem(title: appState.aboutTitle, action: #selector(showAbout)))
         menu.addItem(makeItem(title: appState.quitTitle, action: #selector(quit)))
 
         return menu
@@ -153,10 +152,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func showOptions() {
         appState.showOptions()
-    }
-
-    @objc private func showAbout() {
-        appState.showAbout()
     }
 
     @objc private func quit() {

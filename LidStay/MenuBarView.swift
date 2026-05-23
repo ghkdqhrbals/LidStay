@@ -47,10 +47,6 @@ struct MenuBarView: View {
             appState.showOptions()
         }
 
-        Button(appState.aboutTitle) {
-            appState.showAbout()
-        }
-
         Button(appState.quitTitle) {
             appState.shutdown()
             NSApplication.shared.terminate(nil)
