@@ -532,99 +532,174 @@ func drawPixelRabbitMenuBarIcon(size: CGFloat, phase: CGFloat, active: Bool, inf
 
     let unit = size / 24
     let t = max(0, min(1, phase))
-    let xOffset = active ? Int(round((t - 0.5) * 2)) : 0
-    let yOffset = active ? (t == 0.25 || t == 0.75 ? 1 : 0) : 0
-    let stretched = active && (t == 0 || t == 1)
-    let tucked = active && t == 0.5
+    let bob = active ? (t == 0.25 || t == 0.75 ? 1.0 : 0.0) : 0.0
+    let flap = active ? sin(t * .pi * 2) : 0
+    let color = NSColor.labelColor
 
-    func rectY(_ y: Int, _ h: Int) -> CGFloat {
-        CGFloat(24 - y - h + yOffset) * unit
+    func r(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> NSRect {
+        NSRect(x: x * unit, y: (24 - y - h + bob) * unit, width: w * unit, height: h * unit)
     }
 
-    func block(_ x: Int, _ y: Int, _ w: Int = 1, _ h: Int = 1) {
-        NSColor.labelColor.setFill()
-        NSRect(
-            x: CGFloat(x + xOffset) * unit,
-            y: rectY(y, h),
-            width: CGFloat(w) * unit,
-            height: CGFloat(h) * unit
-        ).fill()
+    func p(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
+        NSPoint(x: x * unit, y: (24 - y + bob) * unit)
     }
 
-    func cutout(_ x: Int, _ y: Int, _ w: Int = 1, _ h: Int = 1) {
+    func fillPath(_ path: NSBezierPath, alpha: CGFloat = 1) {
+        color.withAlphaComponent(alpha).setFill()
+        path.fill()
+    }
+
+    func fillRounded(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, radius: CGFloat) {
+        color.setFill()
+        NSBezierPath(roundedRect: r(x, y, w, h), xRadius: radius * unit, yRadius: radius * unit).fill()
+    }
+
+    func fillOval(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) {
+        color.setFill()
+        NSBezierPath(ovalIn: r(x, y, w, h)).fill()
+    }
+
+    func strokePath(_ path: NSBezierPath, width: CGFloat, alpha: CGFloat = 1) {
+        color.withAlphaComponent(alpha).setStroke()
+        path.lineWidth = width * unit
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        path.stroke()
+    }
+
+    func cutoutOval(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current?.compositingOperation = .destinationOut
         NSColor.white.setFill()
-        NSRect(
-            x: CGFloat(x + xOffset) * unit,
-            y: rectY(y, h),
-            width: CGFloat(w) * unit,
-            height: CGFloat(h) * unit
-        ).fill()
+        NSBezierPath(ovalIn: r(x, y, w, h)).fill()
         NSGraphicsContext.restoreGraphicsState()
     }
 
-    func shade(_ x: Int, _ y: Int, _ w: Int = 1, _ h: Int = 1, alpha: CGFloat = 0.22) {
-        NSColor.labelColor.withAlphaComponent(alpha).setFill()
-        NSRect(
-            x: CGFloat(x + xOffset) * unit,
-            y: CGFloat(24 - y - h + yOffset) * unit,
-            width: CGFloat(w) * unit,
-            height: CGFloat(h) * unit
-        ).fill()
+    func cutoutStroke(_ path: NSBezierPath, width: CGFloat) {
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current?.compositingOperation = .destinationOut
+        NSColor.white.setStroke()
+        path.lineWidth = width * unit
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        path.stroke()
+        NSGraphicsContext.restoreGraphicsState()
     }
 
     if active {
-        shade(6, 18, 12, 1, alpha: 0.20)
-        block(8, 4, 3, 3)
-        block(14, 4, 3, 3)
-        block(7, 6, 11, 2)
-        block(5, 8, 15, 3)
-        block(4, 11, 17, 5)
-        block(6, 16, 13, 2)
-        block(8, 18, 9, 1)
+        let wingLift = flap * 1.4
+        let leftWing = NSBezierPath()
+        leftWing.move(to: p(11.0, 11.2))
+        leftWing.line(to: p(2.2, 7.8 - wingLift))
+        leftWing.line(to: p(5.0, 13.0 - wingLift * 0.4))
+        leftWing.line(to: p(2.8, 17.0 + wingLift * 0.3))
+        leftWing.line(to: p(8.6, 15.7))
+        leftWing.close()
+        fillPath(leftWing)
 
-        if stretched {
-            block(5, 18, 5, 1)
-            block(15, 18, 5, 1)
-            block(4, 19, 3, 1)
-            block(18, 19, 3, 1)
-        } else if tucked {
-            block(7, 18, 4, 1)
-            block(14, 18, 4, 1)
-            block(9, 19, 1, 1)
-            block(16, 19, 1, 1)
-        } else {
-            block(6, 18, 5, 1)
-            block(14, 18, 5, 1)
-            block(9, 19, 2, 1)
-            block(16, 19, 2, 1)
-        }
+        let rightWing = NSBezierPath()
+        rightWing.move(to: p(13.0, 11.2))
+        rightWing.line(to: p(21.8, 7.8 - wingLift))
+        rightWing.line(to: p(19.0, 13.0 - wingLift * 0.4))
+        rightWing.line(to: p(21.2, 17.0 + wingLift * 0.3))
+        rightWing.line(to: p(15.4, 15.7))
+        rightWing.close()
+        fillPath(rightWing)
+
+        fillOval(8.0, 8.2, 8.0, 9.8)
+        fillOval(7.8, 6.4, 3.0, 4.2)
+        fillOval(13.2, 6.4, 3.0, 4.2)
+        fillOval(10.0, 16.3, 1.8, 2.4)
+        fillOval(12.2, 16.3, 1.8, 2.4)
 
         if infinite {
-            cutout(7, 12, 2, 1)
-            cutout(10, 11, 2, 1)
-            cutout(12, 12, 2, 1)
-            cutout(15, 11, 2, 1)
-            cutout(10, 13, 2, 1)
-            cutout(13, 13, 2, 1)
+            cutoutOval(9.3, 11.2, 1.7, 2.2)
+            cutoutOval(13.0, 11.2, 1.7, 2.2)
+            let smile = NSBezierPath()
+            smile.move(to: p(10.4, 14.5))
+            smile.curve(
+                to: p(13.6, 14.5),
+                controlPoint1: p(11.0, 15.5),
+                controlPoint2: p(13.0, 15.5)
+            )
+            cutoutStroke(smile, width: 0.9)
+
+            let infinityMark = NSBezierPath()
+            infinityMark.move(to: p(16.9, 6.2))
+            infinityMark.curve(
+                to: p(19.0, 6.2),
+                controlPoint1: p(17.3, 4.9),
+                controlPoint2: p(18.5, 4.9)
+            )
+            infinityMark.curve(
+                to: p(21.1, 6.2),
+                controlPoint1: p(19.5, 7.5),
+                controlPoint2: p(20.7, 7.5)
+            )
+            infinityMark.curve(
+                to: p(19.0, 6.2),
+                controlPoint1: p(20.7, 4.9),
+                controlPoint2: p(19.5, 4.9)
+            )
+            infinityMark.curve(
+                to: p(16.9, 6.2),
+                controlPoint1: p(18.5, 7.5),
+                controlPoint2: p(17.3, 7.5)
+            )
+            strokePath(infinityMark, width: 0.9)
         } else {
-            cutout(8, 10, 2, 2)
-            cutout(15, 10, 2, 2)
-            cutout(11, 13, 4, 1)
+            cutoutOval(9.3, 11.1, 1.7, 2.2)
+            cutoutOval(13.0, 11.1, 1.7, 2.2)
+            let smile = NSBezierPath()
+            smile.move(to: p(10.4, 14.5))
+            smile.curve(
+                to: p(13.6, 14.5),
+                controlPoint1: p(11.0, 15.5),
+                controlPoint2: p(13.0, 15.5)
+            )
+            cutoutStroke(smile, width: 0.9)
         }
     } else {
-        shade(5, 19, 14, 1, alpha: 0.20)
-        block(6, 13, 13, 3)
-        block(5, 15, 15, 3)
-        block(7, 18, 11, 1)
-        block(9, 12, 7, 1)
-        block(17, 11, 3, 2)
-        block(9, 7, 3, 1)
-        block(11, 6, 4, 1)
-        block(14, 5, 4, 1)
-        cutout(9, 15, 4, 1)
-        cutout(15, 15, 3, 1)
+        let perch = NSBezierPath()
+        perch.move(to: p(6.0, 5.8))
+        perch.line(to: p(18.0, 5.8))
+        strokePath(perch, width: 1.0, alpha: 0.65)
+
+        let leftWrap = NSBezierPath()
+        leftWrap.move(to: p(11.5, 8.5))
+        leftWrap.line(to: p(5.0, 10.2))
+        leftWrap.line(to: p(8.2, 18.0))
+        leftWrap.line(to: p(11.5, 16.4))
+        leftWrap.close()
+        fillPath(leftWrap)
+
+        let rightWrap = NSBezierPath()
+        rightWrap.move(to: p(12.5, 8.5))
+        rightWrap.line(to: p(19.0, 10.2))
+        rightWrap.line(to: p(15.8, 18.0))
+        rightWrap.line(to: p(12.5, 16.4))
+        rightWrap.close()
+        fillPath(rightWrap)
+
+        fillOval(8.6, 7.5, 6.8, 10.2)
+        fillOval(8.3, 15.8, 2.0, 2.4)
+        fillOval(13.7, 15.8, 2.0, 2.4)
+
+        let leftEye = NSBezierPath()
+        leftEye.move(to: p(10.0, 12.0))
+        leftEye.line(to: p(11.0, 12.5))
+        cutoutStroke(leftEye, width: 0.9)
+
+        let rightEye = NSBezierPath()
+        rightEye.move(to: p(14.0, 12.0))
+        rightEye.line(to: p(13.0, 12.5))
+        cutoutStroke(rightEye, width: 0.9)
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 4.8 * unit, weight: .bold),
+            .foregroundColor: color,
+        ]
+        NSAttributedString(string: "Z", attributes: attributes).draw(in: r(16.2, 6.5, 5.0, 5.0))
     }
 
     NSGraphicsContext.restoreGraphicsState()
