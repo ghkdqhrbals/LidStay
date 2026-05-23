@@ -42,26 +42,26 @@ struct OptionsView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
+                    .disabled(!isBatteryConditionSelected)
                 }
 
                 optionRow(title: isKorean ? "배터리 기준" : "Limit", topic: .batteryLimit) {
-                    HStack(spacing: 8) {
-                        TextField("", text: $appState.lowBatteryLimitText)
-                            .frame(width: 48)
-                            .multilineTextAlignment(.trailing)
-                            .onSubmit {
-                                appState.selectLowBatteryLimit(appState.lowBatteryLimit)
-                            }
-                        Text("%")
+                    HStack(spacing: 10) {
+                        Text("1%")
                             .foregroundStyle(.secondary)
-                        ForEach(AppState.lowBatteryLimitOptions, id: \.self) { limit in
-                            Button("\(limit)%") {
-                                appState.selectLowBatteryLimit(limit)
-                            }
-                            .buttonStyle(.borderless)
-                        }
+                            .font(.caption)
+                            .frame(width: 26, alignment: .trailing)
+                        Slider(value: lowBatteryLimitBinding, in: 1...95, step: 1)
+                            .frame(width: 220)
+                        Text("95%")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                            .frame(width: 32, alignment: .leading)
+                        Text("\(appState.lowBatteryLimit)%")
+                            .font(.body.monospacedDigit())
+                            .frame(width: 42, alignment: .trailing)
                     }
-                    .disabled(!appState.autoPauseOnLowBattery)
+                    .disabled(!isBatteryConditionSelected || !appState.autoPauseOnLowBattery)
                 }
 
                 Divider()
@@ -73,6 +73,26 @@ struct OptionsView: View {
                         Text(appState.launchAtLoginStatusTitle)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                    }
+                }
+
+                optionRow(title: isKorean ? "알림" : "Alerts", topic: .notifications) {
+                    HStack(spacing: 10) {
+                        Button(appState.notificationPermissionButtonTitle) {
+                            appState.requestNotificationPermission()
+                        }
+                        .disabled(!appState.canRequestNotificationPermission)
+                        Button(appState.notificationTestButtonTitle) {
+                            appState.sendTestNotification()
+                        }
+                        Text(appState.notificationStatusTitle)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        if appState.isNotificationDenied {
+                            Button(appState.notificationSettingsButtonTitle) {
+                                appState.openNotificationSettings()
+                            }
+                        }
                     }
                 }
 
@@ -131,7 +151,7 @@ struct OptionsView: View {
             Spacer(minLength: 0)
         }
         .padding(22)
-        .frame(width: 520, height: 430)
+        .frame(width: 520, height: 468)
         .popover(item: $helpTopic) { topic in
             VStack(alignment: .leading, spacing: 8) {
                 Text(topic.title(isKorean: isKorean))
@@ -177,6 +197,10 @@ struct OptionsView: View {
     }
 
     private var batteryProtectionSummary: String {
+        if !isBatteryConditionSelected {
+            return isKorean ? "전원 연결 조건에서는 사용 안 함" : "Off for power adapter condition"
+        }
+
         if appState.autoPauseOnLowBattery {
             return isKorean ? "\(appState.lowBatteryLimit)% 이하에서 잠깐 중지" : "Pause at \(appState.lowBatteryLimit)% or below"
         }
@@ -192,6 +216,10 @@ struct OptionsView: View {
         isKorean ? "배터리 포함" : "Include battery"
     }
 
+    private var isBatteryConditionSelected: Bool {
+        appState.allowOnBattery
+    }
+
     private var powerConditionBinding: Binding<PowerCondition> {
         Binding(
             get: {
@@ -199,6 +227,17 @@ struct OptionsView: View {
             },
             set: { condition in
                 appState.allowOnBattery = condition == .battery
+            }
+        )
+    }
+
+    private var lowBatteryLimitBinding: Binding<Double> {
+        Binding(
+            get: {
+                Double(appState.lowBatteryLimit)
+            },
+            set: { value in
+                appState.selectLowBatteryLimit(Int(value.rounded()))
             }
         )
     }
@@ -214,6 +253,7 @@ private enum HelpTopic: Identifiable {
     case batteryProtection
     case batteryLimit
     case launchAtLogin
+    case notifications
     case updates
     case automaticUpdates
     case automaticInstall
@@ -231,6 +271,8 @@ private enum HelpTopic: Identifiable {
             return isKorean ? "배터리 기준" : "Battery limit"
         case .launchAtLogin:
             return isKorean ? "로그인 시 자동 실행" : "Open at login"
+        case .notifications:
+            return isKorean ? "알림" : "Alerts"
         case .updates:
             return isKorean ? "업데이트" : "Updates"
         case .automaticUpdates:
@@ -254,12 +296,16 @@ private enum HelpTopic: Identifiable {
                 : "When battery falls to the limit, the session remains visible but sleep prevention pauses."
         case .batteryLimit:
             return isKorean
-                ? "이 퍼센트 이하에서는 배터리 보호가 동작합니다. 1부터 95 사이 숫자를 사용할 수 있습니다."
-                : "Battery protection activates at or below this percentage. Values from 1 to 95 are allowed."
+                ? "슬라이더로 정한 퍼센트 이하에서는 배터리 보호가 동작합니다."
+                : "Battery protection activates at or below the percentage selected on the slider."
         case .launchAtLogin:
             return isKorean
                 ? "macOS에 로그인한 뒤 LidStay를 자동으로 다시 엽니다."
                 : "Reopens LidStay automatically after you log in to macOS."
+        case .notifications:
+            return isKorean
+                ? "세션 시간이 끝나거나 실행 중이던 Mac 켜두기가 잠깐 중지되면 알림을 보냅니다."
+                : "Sends an alert when a session ends or active sleep prevention pauses."
         case .updates:
             return isKorean
                 ? "지금 새 버전이 있는지 확인합니다. 릴리스 설정이 끝나기 전에는 GitHub 릴리스 페이지를 엽니다."

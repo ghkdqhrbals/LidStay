@@ -1,17 +1,23 @@
 import AppKit
 import Foundation
+import UserNotifications
 
 @MainActor
 final class AppState: ObservableObject {
     static let durationOptions: [DurationOption] = [
         DurationOption(id: "infinite", minutes: nil),
+        DurationOption(id: "10s", minutes: 10.0 / 60.0),
+        DurationOption(id: "30s", minutes: 30.0 / 60.0),
+        DurationOption(id: "15", minutes: 15),
         DurationOption(id: "30", minutes: 30),
+        DurationOption(id: "45", minutes: 45),
         DurationOption(id: "60", minutes: 60),
+        DurationOption(id: "90", minutes: 90),
         DurationOption(id: "120", minutes: 120),
+        DurationOption(id: "240", minutes: 240),
+        DurationOption(id: "480", minutes: 480),
         DurationOption(id: "custom", minutes: -1),
     ]
-    static let lowBatteryLimitOptions = [10, 15, 20, 30, 40]
-
     @Published var isSleepPreventionEnabled: Bool {
         didSet {
             guard isSleepPreventionEnabled != oldValue else {
@@ -94,9 +100,11 @@ final class AppState: ObservableObject {
     private let defaults: UserDefaults
     private let assertionController: PowerAssertionController
     private let powerSourceMonitor: PowerSourceMonitor
+    private let notificationController = AppNotificationController.shared
     private var sessionTimer: Timer?
     private var iconAnimationTask: Task<Void, Never>?
     private var cliCommandObserver: NSObjectProtocol?
+    @Published private(set) var notificationAuthorizationStatus: UNAuthorizationStatus = .notDetermined
 
     init(
         defaults: UserDefaults = .standard,
@@ -118,6 +126,12 @@ final class AppState: ObservableObject {
         self.batteryPercentage = powerSourceMonitor.currentSnapshot.batteryPercentage
 
         CLIInstaller.installBundledCLIIfNeeded()
+        notificationController.onAuthorizationStatusChange = { [weak self] status in
+            Task { @MainActor in
+                self?.notificationAuthorizationStatus = status
+            }
+        }
+        notificationController.prepare()
 
         powerSourceMonitor.onChange = { [weak self] snapshot in
             Task { @MainActor in
@@ -276,8 +290,8 @@ final class AppState: ObservableObject {
         language == .korean ? "켜두는 시간: \(selectedDurationTitle)" : "Duration: \(selectedDurationTitle)"
     }
     var selectedDurationTitle: String {
-        if selectedDurationID == "custom", let minutes = parsedDurationMinutes {
-            return formattedMinutes(minutes)
+        if selectedDurationID == "custom", let seconds = parsedDurationSeconds {
+            return formattedDuration(seconds: seconds)
         }
 
         guard let option = Self.durationOptions.first(where: { $0.id == selectedDurationID }) else {
@@ -290,11 +304,13 @@ final class AppState: ObservableObject {
     var optionsTabTitle: String { language == .korean ? "옵션" : "Options" }
     var awakeToggleTitle: String { language == .korean ? "Mac 켜두기" : "Keep Mac On" }
     var stopAwakeTitle: String { language == .korean ? "Mac 켜두기 중지" : "Stop Keeping Mac On" }
-    var minutesPlaceholder: String { language == .korean ? "분" : "Minutes" }
+    var minutesPlaceholder: String { language == .korean ? "예: 10s, 5m, 2h" : "Ex: 10s, 5m, 2h" }
     var minutesUnit: String { language == .korean ? "분" : "min" }
-    var customMinutesTitle: String { language == .korean ? "직접 시간 입력..." : "Custom Minutes..." }
+    var customMinutesTitle: String { language == .korean ? "직접 시간 입력..." : "Custom Duration..." }
     var customMinutesPromptTitle: String { language == .korean ? "켜둘 시간" : "Duration" }
-    var customMinutesPromptMessage: String { language == .korean ? "분 단위로 입력하세요." : "Enter minutes." }
+    var customMinutesPromptMessage: String {
+        language == .korean ? "초, 분, 시간 단위로 입력하세요. 예: 10s, 5m, 2h" : "Enter seconds, minutes, or hours. Ex: 10s, 5m, 2h"
+    }
     var cancelTitle: String { language == .korean ? "취소" : "Cancel" }
     var applyTitle: String { language == .korean ? "적용" : "Apply" }
     var moreTitle: String { language == .korean ? "더보기" : "More" }
@@ -367,6 +383,52 @@ final class AppState: ObservableObject {
     var checkForUpdatesTitle: String { language == .korean ? "업데이트 확인" : "Check for Updates" }
     var aboutTitle: String { language == .korean ? "정보" : "About" }
     var quitTitle: String { language == .korean ? "종료" : "Quit" }
+    var interruptedNotificationTitle: String {
+        language == .korean ? "LidStay가 잠깐 중지되었습니다" : "LidStay paused"
+    }
+    var sessionEndedNotificationTitle: String {
+        language == .korean ? "LidStay 시간이 끝났습니다" : "LidStay session ended"
+    }
+    var sessionEndedNotificationBody: String {
+        language == .korean ? "설정한 시간이 지나 Mac 켜두기를 중지했습니다." : "The selected duration ended, so LidStay stopped keeping the Mac on."
+    }
+    var testNotificationTitle: String {
+        language == .korean ? "LidStay 알림 테스트" : "LidStay notification test"
+    }
+    var testNotificationBody: String {
+        language == .korean ? "알림이 정상적으로 표시됩니다." : "Notifications are working."
+    }
+    var notificationStatusTitle: String {
+        switch notificationAuthorizationStatus {
+        case .authorized:
+            return language == .korean ? "알림 허용됨" : "Notifications allowed"
+        case .denied:
+            return language == .korean ? "알림 꺼짐" : "Notifications off"
+        case .notDetermined:
+            return language == .korean ? "아직 확인 안 함" : "Not asked yet"
+        case .provisional:
+            return language == .korean ? "조용히 허용됨" : "Allowed quietly"
+        case .ephemeral:
+            return language == .korean ? "임시 허용됨" : "Allowed temporarily"
+        @unknown default:
+            return language == .korean ? "상태 알 수 없음" : "Unknown"
+        }
+    }
+    var notificationTestButtonTitle: String {
+        language == .korean ? "테스트" : "Test"
+    }
+    var notificationPermissionButtonTitle: String {
+        language == .korean ? "권한 요청" : "Allow"
+    }
+    var notificationSettingsButtonTitle: String {
+        language == .korean ? "설정" : "Settings"
+    }
+    var canRequestNotificationPermission: Bool {
+        notificationAuthorizationStatus == .notDetermined
+    }
+    var isNotificationDenied: Bool {
+        notificationAuthorizationStatus == .denied
+    }
 
     var lowBatteryLimit: Int {
         let trimmed = lowBatteryLimitText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -381,12 +443,26 @@ final class AppState: ObservableObject {
         switch option.id {
         case "infinite":
             return language == .korean ? "계속 켜두기" : "Keep On"
+        case "10s":
+            return language == .korean ? "10초" : "10 sec"
+        case "30s":
+            return language == .korean ? "30초" : "30 sec"
+        case "15":
+            return language == .korean ? "15분" : "15 min"
         case "30":
             return language == .korean ? "30분" : "30 min"
+        case "45":
+            return language == .korean ? "45분" : "45 min"
         case "60":
             return language == .korean ? "1시간" : "1 hour"
+        case "90":
+            return language == .korean ? "1시간 30분" : "1.5 hours"
         case "120":
             return language == .korean ? "2시간" : "2 hours"
+        case "240":
+            return language == .korean ? "4시간" : "4 hours"
+        case "480":
+            return language == .korean ? "8시간" : "8 hours"
         case "custom":
             return language == .korean ? "직접 입력" : "Custom"
         default:
@@ -394,22 +470,105 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func formattedMinutes(_ minutes: Double) -> String {
-        if minutes.truncatingRemainder(dividingBy: 60) == 0, minutes >= 60 {
-            let hours = Int(minutes / 60)
-            return language == .korean ? "\(hours)시간" : "\(hours)h"
+    private func formattedDuration(seconds: TimeInterval) -> String {
+        let totalSeconds = max(1, Int(seconds.rounded()))
+        if totalSeconds < 60 {
+            return language == .korean ? "\(totalSeconds)초" : "\(totalSeconds) sec"
         }
 
-        return language == .korean ? "\(Int(minutes))분" : "\(Int(minutes)) min"
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let remainingSeconds = totalSeconds % 60
+
+        if hours > 0 {
+            if minutes == 0 {
+                return language == .korean ? "\(hours)시간" : "\(hours)h"
+            }
+
+            return language == .korean ? "\(hours)시간 \(minutes)분" : "\(hours)h \(minutes)m"
+        }
+
+        if remainingSeconds == 0 {
+            return language == .korean ? "\(minutes)분" : "\(minutes) min"
+        }
+
+        return language == .korean ? "\(minutes)분 \(remainingSeconds)초" : "\(minutes)m \(remainingSeconds)s"
     }
 
     var parsedDurationMinutes: Double? {
-        let trimmed = durationMinutesText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let minutes = Double(trimmed), minutes > 0 else {
+        parsedDurationSeconds.map { $0 / 60 }
+    }
+
+    var parsedDurationSeconds: TimeInterval? {
+        Self.parseDurationSeconds(from: durationMinutesText)
+    }
+
+    static func parseDurationSeconds(from text: String) -> TimeInterval? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
             return nil
         }
 
-        return minutes
+        let lowercased = trimmed.lowercased()
+        let numberPart: Substring
+        let multiplier: Double
+
+        if lowercased.hasSuffix("seconds") {
+            numberPart = lowercased.dropLast("seconds".count)
+            multiplier = 1
+        } else if lowercased.hasSuffix("second") {
+            numberPart = lowercased.dropLast("second".count)
+            multiplier = 1
+        } else if lowercased.hasSuffix("secs") {
+            numberPart = lowercased.dropLast("secs".count)
+            multiplier = 1
+        } else if lowercased.hasSuffix("sec") {
+            numberPart = lowercased.dropLast("sec".count)
+            multiplier = 1
+        } else if lowercased.hasSuffix("s") {
+            numberPart = lowercased.dropLast()
+            multiplier = 1
+        } else if lowercased.hasSuffix("minutes") {
+            numberPart = lowercased.dropLast("minutes".count)
+            multiplier = 60
+        } else if lowercased.hasSuffix("minute") {
+            numberPart = lowercased.dropLast("minute".count)
+            multiplier = 60
+        } else if lowercased.hasSuffix("mins") {
+            numberPart = lowercased.dropLast("mins".count)
+            multiplier = 60
+        } else if lowercased.hasSuffix("min") {
+            numberPart = lowercased.dropLast("min".count)
+            multiplier = 60
+        } else if lowercased.hasSuffix("m") {
+            numberPart = lowercased.dropLast()
+            multiplier = 60
+        } else if lowercased.hasSuffix("hours") {
+            numberPart = lowercased.dropLast("hours".count)
+            multiplier = 3600
+        } else if lowercased.hasSuffix("hour") {
+            numberPart = lowercased.dropLast("hour".count)
+            multiplier = 3600
+        } else if lowercased.hasSuffix("hrs") {
+            numberPart = lowercased.dropLast("hrs".count)
+            multiplier = 3600
+        } else if lowercased.hasSuffix("hr") {
+            numberPart = lowercased.dropLast("hr".count)
+            multiplier = 3600
+        } else if lowercased.hasSuffix("h") {
+            numberPart = lowercased.dropLast()
+            multiplier = 3600
+        } else {
+            numberPart = Substring(lowercased)
+            multiplier = 60
+        }
+
+        let valueText = numberPart.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Double(valueText), value > 0 else {
+            return nil
+        }
+
+        return value * multiplier
     }
 
     var canStartCustomDuration: Bool {
@@ -455,11 +614,11 @@ final class AppState: ObservableObject {
     }
 
     func startCustomMinutesSession() {
-        guard let parsedDurationMinutes else {
+        guard let parsedDurationSeconds else {
             return
         }
 
-        startSession(duration: parsedDurationMinutes * 60)
+        startSession(duration: parsedDurationSeconds)
     }
 
     func stopSession() {
@@ -511,11 +670,11 @@ final class AppState: ObservableObject {
         }
 
         let trimmed = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let minutes = Double(trimmed), minutes > 0 else {
+        guard Self.parseDurationSeconds(from: trimmed) != nil else {
             return
         }
 
-        durationMinutesText = String(format: "%.0f", minutes)
+        durationMinutesText = trimmed
         selectedDurationID = "custom"
         startSelectedSession()
     }
@@ -557,6 +716,21 @@ final class AppState: ObservableObject {
         language = language == .korean ? .english : .korean
     }
 
+    func sendTestNotification() {
+        notificationController.sendNotification(
+            title: testNotificationTitle,
+            body: testNotificationBody
+        )
+    }
+
+    func requestNotificationPermission() {
+        notificationController.requestAuthorization()
+    }
+
+    func openNotificationSettings() {
+        notificationController.openSettings()
+    }
+
     func refreshLaunchAtLoginStatus() {
         launchAtLoginEnabled = defaults.bool(forKey: DefaultsKey.launchAtLoginEnabled)
     }
@@ -586,40 +760,59 @@ final class AppState: ObservableObject {
 
     private func refreshAssertion() {
         expireSessionIfNeeded()
+        let previousState = assertionState
 
         guard isSleepPreventionEnabled else {
             assertionController.release()
-            assertionState = .stopped
+            updateAssertionState(.stopped, previousState: previousState)
             writeCLIStatus()
             return
         }
 
         switch powerSourceState {
         case .acPower:
-            assertionState = assertionController.acquire()
+            updateAssertionState(assertionController.acquire(), previousState: previousState)
         case .battery:
             if allowOnBattery {
                 if autoPauseOnLowBattery, let batteryPercentage, batteryPercentage <= lowBatteryLimit {
                     assertionController.release()
-                    assertionState = .batteryBlocked
+                    updateAssertionState(.batteryBlocked, previousState: previousState)
                     writeCLIStatus()
                     return
                 }
-                assertionState = assertionController.acquire()
+                updateAssertionState(assertionController.acquire(), previousState: previousState)
             } else {
                 assertionController.release()
-                assertionState = .batteryBlocked
+                updateAssertionState(.batteryBlocked, previousState: previousState)
             }
         case .unknown:
             if allowOnBattery {
-                assertionState = assertionController.acquire()
+                updateAssertionState(assertionController.acquire(), previousState: previousState)
             } else {
                 assertionController.release()
-                assertionState = .acPowerOnly
+                updateAssertionState(.acPowerOnly, previousState: previousState)
             }
         }
 
         writeCLIStatus()
+    }
+
+    private func updateAssertionState(_ newState: PowerAssertionState, previousState: PowerAssertionState) {
+        assertionState = newState
+
+        guard isSleepPreventionEnabled, previousState == .active, newState != .active else {
+            return
+        }
+
+        switch newState {
+        case .batteryBlocked, .acPowerOnly, .failed:
+            notificationController.sendNotification(
+                title: interruptedNotificationTitle,
+                body: statusDetail
+            )
+        case .active, .stopped:
+            return
+        }
     }
 
     private var activeSessionText: String {
@@ -634,9 +827,14 @@ final class AppState: ObservableObject {
         let remaining = max(0, Int(sessionEndDate.timeIntervalSince(now)))
         let hours = remaining / 3600
         let minutes = (remaining % 3600) / 60
+        let seconds = remaining % 60
 
         if hours > 0 {
             return language == .korean ? "\(hours)시간 \(minutes)분 남음" : "\(hours)h \(minutes)m left"
+        }
+
+        if minutes == 0 {
+            return language == .korean ? "\(max(1, seconds))초 남음" : "\(max(1, seconds))s left"
         }
 
         return language == .korean ? "\(max(1, minutes))분 남음" : "\(max(1, minutes))m left"
@@ -644,7 +842,7 @@ final class AppState: ObservableObject {
 
     private func startSessionTimer() {
         sessionTimer?.invalidate()
-        sessionTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
+        sessionTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.now = Date()
                 self?.refreshAssertion()
@@ -657,9 +855,16 @@ final class AppState: ObservableObject {
             return
         }
 
+        let shouldNotify = isSleepPreventionEnabled
         clearSession()
         animateMenuBarIcon(opening: false, infinite: selectedDurationID == "infinite")
         isSleepPreventionEnabled = false
+        if shouldNotify {
+            notificationController.sendNotification(
+                title: sessionEndedNotificationTitle,
+                body: sessionEndedNotificationBody
+            )
+        }
     }
 
     private func clearSession() {
@@ -719,6 +924,8 @@ final class AppState: ObservableObject {
             stopSession()
         case "status":
             writeCLIStatus()
+        case "notify-test":
+            sendTestNotification()
         default:
             return
         }
@@ -726,14 +933,20 @@ final class AppState: ObservableObject {
 
     private func selectDurationForCLI(seconds: TimeInterval) {
         let roundedSeconds = Int(seconds.rounded())
-        if roundedSeconds == 30 * 60 {
-            selectedDurationID = "30"
-        } else if roundedSeconds == 60 * 60 {
-            selectedDurationID = "60"
-        } else if roundedSeconds == 120 * 60 {
-            selectedDurationID = "120"
+        if let option = Self.durationOptions.first(where: { option in
+            guard let minutes = option.minutes, minutes > 0 else {
+                return false
+            }
+
+            return Int((minutes * 60).rounded()) == roundedSeconds
+        }) {
+            selectedDurationID = option.id
         } else {
-            durationMinutesText = String(format: "%.0f", seconds / 60)
+            if roundedSeconds < 60 || roundedSeconds % 60 != 0 {
+                durationMinutesText = "\(max(1, roundedSeconds))s"
+            } else {
+                durationMinutesText = "\(roundedSeconds / 60)"
+            }
             selectedDurationID = "custom"
         }
     }
@@ -779,6 +992,110 @@ final class AppState: ObservableObject {
         } else {
             LoginItemController.uninstall()
         }
+    }
+}
+
+private final class AppNotificationController: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = AppNotificationController()
+
+    private let center = UNUserNotificationCenter.current()
+    private var hasPrepared = false
+    var onAuthorizationStatusChange: ((UNAuthorizationStatus) -> Void)?
+
+    private override init() {
+        super.init()
+    }
+
+    func prepare() {
+        guard !hasPrepared else {
+            return
+        }
+
+        hasPrepared = true
+        center.delegate = self
+        refreshAuthorizationStatus()
+    }
+
+    func sendNotification(title: String, body: String) {
+        center.getNotificationSettings { [weak self] settings in
+            guard let self else {
+                return
+            }
+
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                self.addNativeNotification(title: title, body: body)
+                self.refreshAuthorizationStatus()
+            case .notDetermined:
+                self.center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+                    self.refreshAuthorizationStatus()
+                    if granted, error == nil {
+                        self.addNativeNotification(title: title, body: body)
+                    }
+                }
+            case .denied:
+                self.refreshAuthorizationStatus()
+            @unknown default:
+                self.refreshAuthorizationStatus()
+            }
+        }
+    }
+
+    func requestAuthorization() {
+        center.getNotificationSettings { [weak self] settings in
+            guard let self else {
+                return
+            }
+
+            guard settings.authorizationStatus == .notDetermined else {
+                self.refreshAuthorizationStatus()
+                return
+            }
+
+            self.center.requestAuthorization(options: [.alert, .sound]) { [weak self] _, _ in
+                self?.refreshAuthorizationStatus()
+            }
+        }
+    }
+
+    func openSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") else {
+            return
+        }
+
+        NSWorkspace.shared.open(url)
+    }
+
+    private func refreshAuthorizationStatus() {
+        center.getNotificationSettings { [weak self] settings in
+            self?.onAuthorizationStatusChange?(settings.authorizationStatus)
+        }
+    }
+
+    private func addNativeNotification(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.interruptionLevel = .active
+
+        let request = UNNotificationRequest(
+            identifier: "lidstay.notification.\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        center.add(request) { [weak self] error in
+            if error != nil {
+                self?.refreshAuthorizationStatus()
+            }
+        }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list, .sound]
     }
 }
 
