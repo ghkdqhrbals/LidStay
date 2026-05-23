@@ -82,9 +82,6 @@ struct OptionsView: View {
                             appState.requestNotificationPermission()
                         }
                         .disabled(!appState.canRequestNotificationPermission)
-                        Text(appState.notificationStatusTitle)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
                         if appState.isNotificationDenied {
                             Button(appState.notificationSettingsButtonTitle) {
                                 appState.openNotificationSettings()
