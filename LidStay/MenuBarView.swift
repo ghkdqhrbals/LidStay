@@ -37,10 +37,6 @@ struct MenuBarView: View {
             }
         }
 
-        if appState.isSleepPreventionEnabled {
-            Text(appState.endTimeText)
-        }
-
         Divider()
 
         Button(appState.optionsTitle) {

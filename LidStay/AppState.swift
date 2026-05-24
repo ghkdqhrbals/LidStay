@@ -267,11 +267,15 @@ final class AppState: ObservableObject {
     }
 
     var menuStatusText: String {
+        if assertionState == .active, sessionEndDate == nil {
+            return language == .korean ? "계속 켜두는 중" : "Keeping On"
+        }
+
         guard !sessionSummaryText.isEmpty else {
             return statusLineTitle
         }
 
-        return "\(statusLineTitle) · \(sessionSummaryText)"
+        return "\(statusLineTitle) \(sessionSummaryText)\(sessionEndTimeSuffix)"
     }
 
     var endTimeText: String {
@@ -287,7 +291,7 @@ final class AppState: ObservableObject {
 
     var timeLabel: String { language == .korean ? "시간 선택" : "Choose time" }
     var timeMenuTitle: String {
-        language == .korean ? "켜두는 시간: \(selectedDurationTitle)" : "Duration: \(selectedDurationTitle)"
+        timeLabel
     }
     var selectedDurationTitle: String {
         if selectedDurationID == "custom", let seconds = parsedDurationSeconds {
@@ -899,6 +903,18 @@ final class AppState: ObservableObject {
 
     private var activeSessionText: String {
         sessionRemainingText ?? (language == .korean ? "계속 켜두기" : "Keep On")
+    }
+
+    private var sessionEndTimeSuffix: String {
+        guard let sessionEndDate else {
+            return ""
+        }
+
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        let timeText = formatter.string(from: sessionEndDate)
+        return language == .korean ? "(~\(timeText))" : "(until \(timeText))"
     }
 
     private var sessionRemainingText: String? {

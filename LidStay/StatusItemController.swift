@@ -111,12 +111,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         durationItem.submenu = durationMenu
         menu.addItem(durationItem)
 
-        if appState.isSleepPreventionEnabled {
-            let endTimeItem = NSMenuItem(title: appState.endTimeText, action: nil, keyEquivalent: "")
-            endTimeItem.isEnabled = false
-            menu.addItem(endTimeItem)
-        }
-
         menu.addItem(.separator())
         menu.addItem(makeItem(title: appState.optionsTitle, action: #selector(showOptions)))
         menu.addItem(makeItem(title: appState.quitTitle, action: #selector(quit)))
