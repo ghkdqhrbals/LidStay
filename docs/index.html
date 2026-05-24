@@ -43,7 +43,7 @@
     }
 
     .page {
-      width: min(620px, calc(100vw - 36px));
+      width: min(980px, calc(100vw - 36px));
       margin: 0 auto;
       padding: 56px 0 34px;
       text-align: center;
@@ -109,8 +109,18 @@
       font-size: 13px;
     }
 
+    .story {
+      display: block;
+      width: 100%;
+      margin: 36px auto 0;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.08);
+    }
+
     .features {
-      margin: 46px 0 0;
+      width: min(620px, 100%);
+      margin: 34px auto 0;
       padding: 0;
       border-top: 1px solid var(--line);
       color: var(--muted);
@@ -169,7 +179,7 @@
   <main class="page">
     <img class="icon" src="assets/lidstay-icon.png" alt="LidStay app icon" width="112" height="112">
     <h1>LidStay</h1>
-    <p class="tagline">Keeps your Mac awake from the menu bar.</p>
+    <p class="tagline">Keep your Mac awake while you move.</p>
 
     <div class="actions">
       <a class="button primary" href="https://github.com/ghkdqhrbals/LidStay/releases/latest/download/LidStay.pkg">Download</a>
@@ -178,11 +188,12 @@
     <p class="subtext">For macOS 13 and newer.</p>
     <p class="release" id="release-version">Latest release</p>
 
+    <img class="story" src="assets/lidstay-workflow.png" alt="Use LidStay before leaving, keep coding from your phone, then resume on your Mac." width="1774" height="887">
+
     <ul class="features" aria-label="Features">
       <li><strong>One click</strong> to keep your Mac awake.</li>
-      <li><strong>Choose a duration</strong> or keep it on until you stop it.</li>
-      <li><strong>Display sleep is allowed</strong>, so the screen can still turn off.</li>
-      <li><strong>Battery limit</strong> can stop the session automatically.</li>
+      <li><strong>Closed lid protection</strong> dims the built-in display when possible.</li>
+      <li><strong>Battery limit</strong> pauses automatically before power gets too low.</li>
     </ul>
 
     <footer>
