@@ -1,6 +1,8 @@
 # LidStay
 
-LidStay is a simple macOS menu bar app for keeping your Mac awake while still allowing display sleep.
+Close the lid. Keep your Mac running.
+
+LidStay is a simple macOS menu bar app that keeps your Mac awake with the lid closed, while helping protect the built-in display and battery.
 
 Website: https://ghkdqhrbals.github.io/LidStay/
 
@@ -14,9 +16,10 @@ https://github.com/ghkdqhrbals/LidStay/releases/latest/download/LidStay.pkg
 
 ## Features
 
-- Click the menu bar eye icon to turn Mac keep-awake on or off.
+- One click to keep your Mac running with the lid closed.
+- Display protection dims the built-in screen when possible.
+- Battery guard pauses before power gets too low.
 - Choose a duration or keep it on until you stop it.
-- Display sleep remains allowed.
-- Battery protection, login launch, notifications, automatic updates, and in-app removal are available in Options.
+- Login launch, notifications, automatic updates, and in-app removal are available in Options.
 
 LidStay uses public macOS power APIs only.

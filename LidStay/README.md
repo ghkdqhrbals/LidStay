@@ -1,6 +1,8 @@
 # LidStay
 
-LidStay is a lightweight macOS 13+ menu bar app that keeps your Mac awake with a public IOKit power assertion while still allowing display sleep.
+LidStay is a lightweight macOS 13+ menu bar app that keeps your Mac running with the lid closed, while helping protect the built-in display and battery.
+
+It uses public macOS power APIs and keeps the display protection behavior separate from the wake session itself.
 
 ## Build
 
@@ -29,7 +31,8 @@ The app bundle includes the `lidstay` CLI. On first launch, LidStay installs or 
 - `배터리 조건 허용` permits the assertion while running on battery, although macOS may limit closed-lid behavior on battery.
 - By default, battery power blocks the assertion to reduce drain and heat.
 - Battery sessions automatically pause at 20% or lower.
-- LidStay does not create a display sleep assertion, so the display can still turn off normally and macOS may still show the lock screen when you reopen the lid.
+- LidStay can dim the built-in display when the lid closes and restore brightness when it opens.
+- LidStay can start the screen saver for extra display protection.
 - Lid-closed behavior can still depend on Mac hardware, power source, and macOS policy.
 
 ## Homebrew Install
