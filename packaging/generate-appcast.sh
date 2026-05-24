@@ -40,6 +40,7 @@ VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP_
 BUILD="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP_PATH/Contents/Info.plist")"
 RELEASE_TAG="${RELEASE_TAG:-v$VERSION}"
 DOWNLOAD_URL_PREFIX="${DOWNLOAD_URL_PREFIX:-https://github.com/ghkdqhrbals/LidStay/releases/download/$RELEASE_TAG}"
+DOWNLOAD_URL_PREFIX="${DOWNLOAD_URL_PREFIX%/}/"
 ARCHIVE_NAME="LidStay-$VERSION-$BUILD.zip"
 
 mkdir -p "$UPDATES_DIR"
