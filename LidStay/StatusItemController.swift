@@ -61,6 +61,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func toggleSession() {
+        if appState.isWaitingForStartCondition,
+           let reason = appState.startPreventionUnavailableReason {
+            showUnavailableStartMenu(reason: reason)
+            return
+        }
+
         let newValue = !appState.isSleepPreventionEnabled
         guard !newValue else {
             if let reason = appState.startPreventionUnavailableReason {

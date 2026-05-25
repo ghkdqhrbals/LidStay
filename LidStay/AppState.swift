@@ -642,6 +642,19 @@ final class AppState: ObservableObject {
         return nil
     }
 
+    var isWaitingForStartCondition: Bool {
+        guard isSleepPreventionEnabled else {
+            return false
+        }
+
+        switch assertionState {
+        case .batteryBlocked, .acPowerOnly:
+            return startPreventionUnavailableReason != nil
+        case .active, .stopped, .failed:
+            return false
+        }
+    }
+
     func shutdown() {
         sessionTimer?.invalidate()
         updateDisplayBrightnessForClosedLid(for: .stopped)
