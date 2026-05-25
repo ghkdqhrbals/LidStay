@@ -65,7 +65,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         guard !newValue else {
             if let reason = appState.startPreventionUnavailableReason {
                 transientStatusMessage = reason
-                showMenu()
+                showMenuAfterCurrentEvent()
                 return
             }
 
@@ -81,6 +81,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
+    }
+
+    private func showMenuAfterCurrentEvent() {
+        DispatchQueue.main.async { [weak self] in
+            self?.showMenu()
+        }
     }
 
     func menuDidClose(_ menu: NSMenu) {
@@ -143,7 +149,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func startSession() {
         if let reason = appState.startPreventionUnavailableReason {
             transientStatusMessage = reason
-            showMenu()
+            showMenuAfterCurrentEvent()
             return
         }
 
