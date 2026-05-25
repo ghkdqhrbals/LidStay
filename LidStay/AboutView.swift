@@ -4,7 +4,7 @@ struct AboutView: View {
     let language: AppLanguage
 
     private var versionText: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.2"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.1"
         return language == .korean ? "버전 \(version)" : "Version \(version)"
     }
 
