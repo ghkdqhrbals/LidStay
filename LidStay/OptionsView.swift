@@ -64,6 +64,16 @@ struct OptionsView: View {
                     .disabled(!isBatteryConditionSelected || !appState.autoPauseOnLowBattery)
                 }
 
+                optionRow(title: isKorean ? "화면 보호기" : "Screen Saver") {
+                    HStack(spacing: 10) {
+                        Toggle("", isOn: $appState.startScreenSaverOnClosedLid)
+                            .labelsHidden()
+                        Text(isKorean ? "덮개 닫힘 시 실행" : "Starts when lid closes")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
                 Divider()
 
                 optionRow(title: isKorean ? "자동 실행" : "Launch") {
@@ -121,6 +131,47 @@ struct OptionsView: View {
                     .frame(width: 140)
                 }
 
+                optionRow(title: isKorean ? "피드백" : "Feedback") {
+                    HStack(spacing: 10) {
+                        Menu(isKorean ? "피드백/버그 리포트" : "Feedback & Bug Report") {
+                            Button(isKorean ? "버그 제보" : "Report a Bug") {
+                                appState.openBugReport()
+                            }
+                            .keyboardShortcut("b", modifiers: [.command, .shift])
+                            Button(isKorean ? "기능 제안" : "Request a Feature") {
+                                appState.openFeatureRequest()
+                            }
+                            .keyboardShortcut("f", modifiers: [.command, .shift])
+                            Divider()
+                            Button(isKorean ? "GitHub Issues 보기" : "Open GitHub Issues") {
+                                appState.openGitHubIssues()
+                            }
+                            .keyboardShortcut("i", modifiers: [.command, .shift])
+                        }
+                        Text(isKorean ? "GitHub Issue로 남겨주세요" : "Opens GitHub Issues")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                optionRow(title: isKorean ? "개발자 모드" : "Developer Mode") {
+                    HStack(spacing: 10) {
+                        Toggle("", isOn: $appState.developerModeEnabled)
+                            .labelsHidden()
+                        Text(appState.developerModeEnabled
+                             ? (isKorean ? "디버그 로그 표시" : "Shows debug logs")
+                             : (isKorean ? "디버그 로그 숨김" : "Hides debug logs"))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                if appState.developerModeEnabled {
+                    optionRow(title: isKorean ? "디버그" : "Debug") {
+                        debugLogView
+                    }
+                }
+
                 optionRow(title: isKorean ? "정보" : "About") {
                     HStack(spacing: 10) {
                         Button(isKorean ? "LidStay 정보" : "About LidStay") {
@@ -149,7 +200,7 @@ struct OptionsView: View {
             Spacer(minLength: 0)
         }
         .padding(22)
-        .frame(width: 520, height: 468)
+        .frame(width: 620, height: optionsWindowHeight)
         .popover(item: $helpTopic) { topic in
             VStack(alignment: .leading, spacing: 8) {
                 Text(topic.title(isKorean: isKorean))
@@ -240,6 +291,55 @@ struct OptionsView: View {
                 appState.selectLowBatteryLimit(Int(value.rounded()))
             }
         )
+    }
+
+    private var optionsWindowHeight: CGFloat {
+        appState.developerModeEnabled ? 720 : 610
+    }
+
+    private var debugLogView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if appState.debugEvents.isEmpty {
+                Text(appState.debugLogEmptyTitle)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(appState.debugEvents.prefix(8))) { event in
+                            HStack(alignment: .top, spacing: 6) {
+                                Image(systemName: event.succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(event.succeeded ? Color.green : Color.red)
+                                    .imageScale(.small)
+                                    .frame(width: 16)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\(event.timeText) \(event.title)")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text(event.detail)
+                                        .font(.caption.monospaced())
+                                        .lineLimit(2)
+                                        .textSelection(.enabled)
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: 118)
+            }
+
+            HStack(spacing: 10) {
+                Text(appState.debugLogFileHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Button(appState.clearDebugLogTitle) {
+                    appState.clearDebugEvents()
+                }
+                .disabled(appState.debugEvents.isEmpty)
+            }
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import IOKit
 import UserNotifications
 
 @MainActor
@@ -63,6 +64,18 @@ final class AppState: ObservableObject {
         }
     }
 
+    @Published var startScreenSaverOnClosedLid: Bool {
+        didSet {
+            defaults.set(startScreenSaverOnClosedLid, forKey: DefaultsKey.startScreenSaverOnClosedLid)
+        }
+    }
+
+    @Published var developerModeEnabled: Bool {
+        didSet {
+            defaults.set(developerModeEnabled, forKey: DefaultsKey.developerModeEnabled)
+        }
+    }
+
     @Published var lowBatteryLimitText: String {
         didSet {
             defaults.set(lowBatteryLimitText, forKey: DefaultsKey.lowBatteryLimitText)
@@ -75,6 +88,7 @@ final class AppState: ObservableObject {
     @Published private(set) var assertionState: PowerAssertionState = .stopped
     @Published private(set) var sessionEndDate: Date?
     @Published private(set) var now = Date()
+    @Published private(set) var debugEvents: [DebugEvent] = []
     @Published private var menuBarIconAnimationName: String?
     @Published var durationMinutesText: String {
         didSet {
@@ -116,14 +130,24 @@ final class AppState: ObservableObject {
         self.powerSourceMonitor = powerSourceMonitor
         self.isSleepPreventionEnabled = defaults.bool(forKey: DefaultsKey.isSleepPreventionEnabled)
         self.allowOnBattery = defaults.bool(forKey: DefaultsKey.allowOnBattery)
-        self.language = AppLanguage(rawValue: defaults.string(forKey: DefaultsKey.language) ?? "") ?? .korean
+        self.language = AppLanguage(rawValue: defaults.string(forKey: DefaultsKey.language) ?? "") ?? .english
         self.launchAtLoginEnabled = defaults.bool(forKey: DefaultsKey.launchAtLoginEnabled)
         self.autoPauseOnLowBattery = defaults.object(forKey: DefaultsKey.autoPauseOnLowBattery) as? Bool ?? true
+        self.startScreenSaverOnClosedLid = defaults.object(forKey: DefaultsKey.startScreenSaverOnClosedLid) as? Bool ?? true
+        self.developerModeEnabled = defaults.object(forKey: DefaultsKey.developerModeEnabled) as? Bool ?? false
         self.lowBatteryLimitText = defaults.string(forKey: DefaultsKey.lowBatteryLimitText) ?? "20"
         self.durationMinutesText = defaults.string(forKey: DefaultsKey.durationMinutesText) ?? "60"
         self.selectedDurationID = defaults.string(forKey: DefaultsKey.selectedDurationID) ?? "infinite"
         self.powerSourceState = powerSourceMonitor.currentSnapshot.state
         self.batteryPercentage = powerSourceMonitor.currentSnapshot.batteryPercentage
+
+        if let result = assertionController.restoreSystemSleepState() {
+            appendDebugEvent(
+                title: "IOKit",
+                detail: "Startup safety reset SetClamshellSleepState input=0: IOReturn \(result)",
+                succeeded: result == kIOReturnSuccess
+            )
+        }
 
         CLIInstaller.installBundledCLIIfNeeded()
         notificationController.onAuthorizationStatusChange = { [weak self] status in
@@ -370,6 +394,17 @@ final class AppState: ObservableObject {
             ? "켜면 전원 연결 중일 때만 실행됩니다. 배터리만 사용할 때는 자동으로 기다립니다."
             : "When on, LidStay runs only while the power adapter is connected and waits on battery."
     }
+    var debugLogEmptyTitle: String {
+        language == .korean ? "아직 실행 기록이 없습니다." : "No debug events yet."
+    }
+    var clearDebugLogTitle: String {
+        language == .korean ? "기록 지우기" : "Clear"
+    }
+    var debugLogFileHint: String {
+        language == .korean
+            ? "실행 기록은 앱 안과 debug.log에 남습니다."
+            : "Events are shown here and written to debug.log."
+    }
     var launchAtLoginTitle: String { language == .korean ? "로그인 시 자동 실행" : "Open at Login" }
     var launchAtLoginStatusTitle: String {
         launchAtLoginEnabled
@@ -579,6 +614,14 @@ final class AppState: ObservableObject {
 
     func shutdown() {
         sessionTimer?.invalidate()
+        updateDisplayBrightnessForClosedLid(for: .stopped)
+        if let result = assertionController.setClamshellSleepDisabled(false, force: true) {
+            appendDebugEvent(
+                title: "IOKit",
+                detail: "SetClamshellSleepState input=0 on shutdown: IOReturn \(result)",
+                succeeded: result == kIOReturnSuccess
+            )
+        }
         assertionController.release()
         powerSourceMonitor.stop()
         if let cliCommandObserver {
@@ -632,6 +675,42 @@ final class AppState: ObservableObject {
 
     func showAbout() {
         AboutWindowController.shared.show(language: language)
+    }
+
+    func openBugReport() {
+        openGitHubIssue(title: "Bug report", labels: "bug", body: """
+        ## What happened?
+
+        ## What did you expect?
+
+        ## Steps to reproduce
+        1.
+        2.
+        3.
+
+        ## Mac and LidStay
+        - macOS:
+        - Mac model:
+        - LidStay version:
+        """)
+    }
+
+    func openFeatureRequest() {
+        openGitHubIssue(title: "Feature request", labels: "enhancement", body: """
+        ## What would you like LidStay to do?
+
+        ## Why is this useful?
+
+        ## Additional context
+        """)
+    }
+
+    func openGitHubIssues() {
+        guard let url = URL(string: "https://github.com/ghkdqhrbals/LidStay/issues") else {
+            return
+        }
+
+        NSWorkspace.shared.open(url)
     }
 
     func showOptions() {
@@ -886,6 +965,31 @@ final class AppState: ObservableObject {
     private func updateAssertionState(_ newState: PowerAssertionState, previousState: PowerAssertionState) {
         assertionState = newState
 
+        if previousState != .active, newState == .active {
+            appendDebugEvent(
+                title: "IOKit",
+                detail: "Create PreventSystemSleep + PreventUserIdleDisplaySleep assertions",
+                succeeded: true
+            )
+        } else if previousState == .active, newState != .active {
+            appendDebugEvent(
+                title: "IOKit",
+                detail: "Release PreventSystemSleep + PreventUserIdleDisplaySleep assertions",
+                succeeded: true
+            )
+        }
+
+        if case .failed(let code) = newState {
+            appendDebugEvent(
+                title: "IOKit",
+                detail: "Create sleep/display assertion failed: IOReturn \(code)",
+                succeeded: false
+            )
+        }
+
+        updateClamshellSleepState(for: newState)
+        updateDisplayBrightnessForClosedLid(for: newState)
+
         guard isSleepPreventionEnabled, previousState == .active, newState != .active else {
             return
         }
@@ -940,7 +1044,7 @@ final class AppState: ObservableObject {
 
     private func startSessionTimer() {
         sessionTimer?.invalidate()
-        sessionTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+        sessionTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.now = Date()
                 self?.refreshAssertion()
@@ -1079,12 +1183,111 @@ final class AppState: ObservableObject {
             .appendingPathComponent("Library/Application Support/LidStay/status.json")
     }
 
+    func clearDebugEvents() {
+        debugEvents.removeAll()
+        try? FileManager.default.removeItem(at: Self.debugLogURL)
+    }
+
+    private func appendDebugEvent(title: String, detail: String, succeeded: Bool) {
+        let event = DebugEvent(date: Date(), title: title, detail: detail, succeeded: succeeded)
+        debugEvents.insert(event, at: 0)
+        if debugEvents.count > 80 {
+            debugEvents.removeLast(debugEvents.count - 80)
+        }
+        appendDebugEventToFile(event)
+    }
+
+    private func appendDebugEventToFile(_ event: DebugEvent) {
+        let isoFormatter = ISO8601DateFormatter()
+        let line = "\(isoFormatter.string(from: event.date)) [\(event.succeeded ? "ok" : "failed")] \(event.title) - \(event.detail)\n"
+        let logURL = Self.debugLogURL
+
+        do {
+            try FileManager.default.createDirectory(
+                at: logURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+
+            if FileManager.default.fileExists(atPath: logURL.path),
+               let handle = try? FileHandle(forWritingTo: logURL) {
+                try handle.seekToEnd()
+                if let data = line.data(using: .utf8) {
+                    try handle.write(contentsOf: data)
+                }
+                try handle.close()
+            } else {
+                try line.write(to: logURL, atomically: true, encoding: .utf8)
+            }
+        } catch {
+            return
+        }
+    }
+
+    private static var debugLogURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/LidStay/debug.log")
+    }
+
+    private func updateClamshellSleepState(for state: PowerAssertionState) {
+        let shouldDisableClamshellSleep = state == .active
+        guard let result = assertionController.setClamshellSleepDisabled(shouldDisableClamshellSleep) else {
+            return
+        }
+
+        appendDebugEvent(
+            title: "IOKit",
+            detail: "SetClamshellSleepState input=\(shouldDisableClamshellSleep ? 1 : 0): IOReturn \(result)",
+            succeeded: result == kIOReturnSuccess
+        )
+    }
+
+    private func updateDisplayBrightnessForClosedLid(for state: PowerAssertionState) {
+        guard let event = assertionController.updateDisplayBrightnessForClosedLid(active: state == .active) else {
+            return
+        }
+
+        appendDebugEvent(
+            title: "Display",
+            detail: event.detail,
+            succeeded: event.succeeded
+        )
+
+        if event.kind == .closedLidBrightnessDimmed, event.succeeded, startScreenSaverOnClosedLid {
+            startScreenSaverForClosedLid()
+        }
+    }
+
+    private func startScreenSaverForClosedLid() {
+        let started = ScreenSaverController.start()
+        appendDebugEvent(
+            title: "Screen Saver",
+            detail: started ? "Start ScreenSaverEngine on closed lid" : "Start ScreenSaverEngine failed",
+            succeeded: started
+        )
+    }
+
     private static func shellQuoted(_ value: String) -> String {
         "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
     }
 
     private static func appleScriptQuoted(_ value: String) -> String {
         "\"\(value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
+    }
+
+    private func openGitHubIssue(title: String, labels: String, body: String) {
+        var components = URLComponents(string: "https://github.com/ghkdqhrbals/LidStay/issues/new")
+        components?.queryItems = [
+            URLQueryItem(name: "title", value: title),
+            URLQueryItem(name: "labels", value: labels),
+            URLQueryItem(name: "body", value: body)
+        ]
+
+        guard let url = components?.url else {
+            openGitHubIssues()
+            return
+        }
+
+        NSWorkspace.shared.open(url)
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
@@ -1221,6 +1424,46 @@ private enum DefaultsKey {
     static let launchAtLoginEnabled = "launchAtLoginEnabled"
     static let autoPauseOnLowBattery = "autoPauseOnLowBattery"
     static let lowBatteryLimitText = "lowBatteryLimitText"
+    static let startScreenSaverOnClosedLid = "startScreenSaverOnClosedLid"
+    static let developerModeEnabled = "developerModeEnabled"
+}
+
+private enum ScreenSaverController {
+    static func start() -> Bool {
+        let executableURL = URL(fileURLWithPath: "/System/Library/CoreServices/ScreenSaverEngine.app/Contents/MacOS/ScreenSaverEngine")
+        guard FileManager.default.fileExists(atPath: executableURL.path) else {
+            return false
+        }
+
+        let process = Process()
+        process.executableURL = executableURL
+
+        do {
+            try process.run()
+            return true
+        } catch {
+            return false
+        }
+    }
+}
+
+struct DebugEvent: Identifiable, Equatable {
+    let id = UUID()
+    let date: Date
+    let title: String
+    let detail: String
+    let succeeded: Bool
+
+    var timeText: String {
+        Self.timeFormatter.string(from: date)
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .medium
+        formatter.dateStyle = .none
+        return formatter
+    }()
 }
 
 private enum LoginItemController {

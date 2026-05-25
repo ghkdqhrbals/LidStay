@@ -12,6 +12,7 @@
 		8A1C3CB12C6A4A17008B1010 /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3CB02C6A4A17008B1010 /* StatusItemController.swift */; };
 		8A1C3C7F2C6A4A11008B1010 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C782C6A4A11008B1010 /* AppState.swift */; };
 		8A1C3C802C6A4A11008B1010 /* PowerAssertionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */; };
+		8A2D10052C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */; };
 		8A1C3C812C6A4A11008B1010 /* PowerSourceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */; };
 		8A1C3C912C6A4A12008B1010 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C8E2C6A4A12008B1010 /* AboutView.swift */; };
 		8A1C3C922C6A4A12008B1010 /* AboutWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C8F2C6A4A12008B1010 /* AboutWindowController.swift */; };
@@ -23,6 +24,8 @@
 		8A1C3CA72C6A4A15008B1010 /* lidstay in Resources */ = {isa = PBXBuildFile; fileRef = 8A1C3CA62C6A4A15008B1010 /* lidstay */; };
 		8A1C3CAA2C6A4A16008B1010 /* UpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3CA92C6A4A16008B1010 /* UpdateController.swift */; };
 		8A1C3CAD2C6A4A16008B1010 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 8A1C3CAC2C6A4A16008B1010 /* Sparkle */; };
+		8A2D10062C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */; };
+		8A2D10072C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D10032C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +35,7 @@
 		8A1C3CB02C6A4A17008B1010 /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
 		8A1C3C782C6A4A11008B1010 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerAssertionController.swift; sourceTree = "<group>"; };
+		8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClosedLidBrightnessController.swift; sourceTree = "<group>"; };
 		8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerSourceMonitor.swift; sourceTree = "<group>"; };
 		8A1C3C8E2C6A4A12008B1010 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		8A1C3C8F2C6A4A12008B1010 /* AboutWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindowController.swift; sourceTree = "<group>"; };
@@ -43,6 +47,8 @@
 		8A1C3CA62C6A4A15008B1010 /* lidstay */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = lidstay; sourceTree = "<group>"; };
 		8A1C3CA92C6A4A16008B1010 /* UpdateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateController.swift; sourceTree = "<group>"; };
 		8A1C3CAE2C6A4A16008B1010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8A2D10022C7F0001008B1010 /* LidStayTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LidStayTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A2D10032C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClosedLidBrightnessControllerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -57,6 +63,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8A2D10092C7F0001008B1010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -64,6 +77,7 @@
 			isa = PBXGroup;
 			children = (
 				8A1C3C752C6A4A11008B1010 /* LidStay */,
+				8A2D10042C7F0001008B1010 /* LidStayTests */,
 				8A1C3CA82C6A4A15008B1010 /* CLI */,
 				8A1C3C732C6A4A10008B1010 /* Products */,
 			);
@@ -73,6 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				8A1C3C722C6A4A10008B1010 /* LidStay.app */,
+				8A2D10022C7F0001008B1010 /* LidStayTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -85,6 +100,7 @@
 				8A1C3CB02C6A4A17008B1010 /* StatusItemController.swift */,
 				8A1C3C782C6A4A11008B1010 /* AppState.swift */,
 				8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */,
+				8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */,
 				8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */,
 				8A1C3CA22C6A4A14008B1010 /* CLICommand.swift */,
 				8A1C3CA42C6A4A15008B1010 /* CLIInstaller.swift */,
@@ -105,6 +121,14 @@
 				8A1C3CA62C6A4A15008B1010 /* lidstay */,
 			);
 			path = CLI;
+			sourceTree = "<group>";
+		};
+		8A2D10042C7F0001008B1010 /* LidStayTests */ = {
+			isa = PBXGroup;
+			children = (
+				8A2D10032C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift */,
+			);
+			path = LidStayTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -130,6 +154,23 @@
 			productReference = 8A1C3C722C6A4A10008B1010 /* LidStay.app */;
 			productType = "com.apple.product-type.application";
 		};
+		8A2D100B2C7F0001008B1010 /* LidStayTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8A2D100E2C7F0001008B1010 /* Build configuration list for PBXNativeTarget "LidStayTests" */;
+			buildPhases = (
+				8A2D10082C7F0001008B1010 /* Sources */,
+				8A2D10092C7F0001008B1010 /* Frameworks */,
+				8A2D100A2C7F0001008B1010 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LidStayTests;
+			productName = LidStayTests;
+			productReference = 8A2D10022C7F0001008B1010 /* LidStayTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -142,6 +183,10 @@
 				TargetAttributes = {
 					8A1C3C712C6A4A10008B1010 = {
 						CreatedOnToolsVersion = 26.0.1;
+					};
+					8A2D100B2C7F0001008B1010 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = 8A1C3C712C6A4A10008B1010;
 					};
 				};
 			};
@@ -163,6 +208,7 @@
 			projectRoot = "";
 			targets = (
 				8A1C3C712C6A4A10008B1010 /* LidStay */,
+				8A2D100B2C7F0001008B1010 /* LidStayTests */,
 			);
 		};
 /* End PBXProject section */
@@ -174,6 +220,13 @@
 			files = (
 				8A1C3C932C6A4A12008B1010 /* Assets.xcassets in Resources */,
 				8A1C3CA72C6A4A15008B1010 /* lidstay in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8A2D100A2C7F0001008B1010 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -189,6 +242,7 @@
 				8A1C3CB12C6A4A17008B1010 /* StatusItemController.swift in Sources */,
 				8A1C3C7F2C6A4A11008B1010 /* AppState.swift in Sources */,
 				8A1C3C802C6A4A11008B1010 /* PowerAssertionController.swift in Sources */,
+				8A2D10052C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */,
 				8A1C3C812C6A4A11008B1010 /* PowerSourceMonitor.swift in Sources */,
 				8A1C3C912C6A4A12008B1010 /* AboutView.swift in Sources */,
 				8A1C3C922C6A4A12008B1010 /* AboutWindowController.swift in Sources */,
@@ -197,6 +251,15 @@
 				8A1C3CAA2C6A4A16008B1010 /* UpdateController.swift in Sources */,
 				8A1C3CA02C6A4A13008B1010 /* OptionsView.swift in Sources */,
 				8A1C3CA12C6A4A13008B1010 /* OptionsWindowController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8A2D10082C7F0001008B1010 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8A2D10062C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */,
+				8A2D10072C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -328,7 +391,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 4CL25TC734;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -338,7 +401,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.11;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ghkdqhrbals.LidStay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SPARKLE_FEED_URL = "https://github.com/ghkdqhrbals/LidStay/releases/latest/download/appcast.xml";
@@ -354,7 +417,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 4CL25TC734;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -364,12 +427,52 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.11;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ghkdqhrbals.LidStay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SPARKLE_FEED_URL = "https://github.com/ghkdqhrbals/LidStay/releases/latest/download/appcast.xml";
 				SPARKLE_PUBLIC_ED_KEY = "SFBDrWBr+kRxZOiUM1xHY+XgbC8vqAZ9fcLadJ9Trmw=";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		8A2D100C2C7F0001008B1010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4CL25TC734;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ghkdqhrbals.LidStayTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		8A2D100D2C7F0001008B1010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4CL25TC734;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ghkdqhrbals.LidStayTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -391,6 +494,15 @@
 			buildConfigurations = (
 				8A1C3C8C2C6A4A11008B1010 /* Debug */,
 				8A1C3C8D2C6A4A11008B1010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8A2D100E2C7F0001008B1010 /* Build configuration list for PBXNativeTarget "LidStayTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8A2D100C2C7F0001008B1010 /* Debug */,
+				8A2D100D2C7F0001008B1010 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

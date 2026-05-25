@@ -42,11 +42,13 @@ struct MenuBarView: View {
         Button(appState.optionsTitle) {
             appState.showOptions()
         }
+        .keyboardShortcut(",", modifiers: [.command])
 
         Button(appState.quitTitle) {
             appState.shutdown()
             NSApplication.shared.terminate(nil)
         }
+        .keyboardShortcut("q", modifiers: [.command])
     }
 
     private var statusItem: some View {
