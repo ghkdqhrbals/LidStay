@@ -11,7 +11,7 @@ struct MenuBarView: View {
 
         Button {
             let newValue = !appState.isSleepPreventionEnabled
-            guard !newValue || appState.canToggleSleepPrevention else {
+            guard !newValue || appState.startPreventionUnavailableReason == nil else {
                 return
             }
             appState.setSleepPreventionEnabled(newValue)

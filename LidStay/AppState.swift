@@ -612,6 +612,36 @@ final class AppState: ObservableObject {
         selectedDurationID != "custom" || canStartCustomDuration
     }
 
+    var startPreventionUnavailableReason: String? {
+        if selectedDurationID == "custom", !canStartCustomDuration {
+            return language == .korean
+                ? "켜둘 시간을 먼저 입력하세요."
+                : "Enter a duration first."
+        }
+
+        if !allowOnBattery {
+            switch powerSourceState {
+            case .battery, .unknown:
+                return language == .korean
+                    ? "전원 어댑터를 연결하면 켜둘 수 있습니다."
+                    : "Connect the power adapter to keep running."
+            case .acPower:
+                break
+            }
+        }
+
+        if allowOnBattery,
+           autoPauseOnLowBattery,
+           let batteryPercentage,
+           batteryPercentage <= lowBatteryLimit {
+            return language == .korean
+                ? "배터리 \(batteryPercentage)%라서 잠깐 중지됩니다."
+                : "Paused because battery is \(batteryPercentage)%."
+        }
+
+        return nil
+    }
+
     func shutdown() {
         sessionTimer?.invalidate()
         updateDisplayBrightnessForClosedLid(for: .stopped)

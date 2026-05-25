@@ -6,6 +6,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let appState: AppState
     private let statusItem: NSStatusItem
     private var cancellables = Set<AnyCancellable>()
+    private var transientStatusMessage: String?
 
     init(appState: AppState) {
         self.appState = appState
@@ -61,10 +62,18 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private func toggleSession() {
         let newValue = !appState.isSleepPreventionEnabled
-        guard !newValue || appState.canToggleSleepPrevention else {
+        guard !newValue else {
+            if let reason = appState.startPreventionUnavailableReason {
+                transientStatusMessage = reason
+                showMenu()
+                return
+            }
+
+            appState.setSleepPreventionEnabled(true)
             return
         }
-        appState.setSleepPreventionEnabled(newValue)
+
+        appState.setSleepPreventionEnabled(false)
     }
 
     private func showMenu() {
@@ -76,15 +85,22 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     func menuDidClose(_ menu: NSMenu) {
         statusItem.menu = nil
+        transientStatusMessage = nil
     }
 
     private func makeMenu() -> NSMenu {
         let menu = NSMenu()
 
         let statusItem = NSMenuItem(title: appState.menuStatusText, action: nil, keyEquivalent: "")
-        statusItem.image = NSImage(named: appState.statusDotImageName)
+        statusItem.image = NSImage(named: transientStatusMessage == nil ? appState.statusDotImageName : "StatusDotOrange")
         statusItem.isEnabled = false
         menu.addItem(statusItem)
+
+        if let transientStatusMessage {
+            let reasonItem = NSMenuItem(title: transientStatusMessage, action: nil, keyEquivalent: "")
+            reasonItem.isEnabled = false
+            menu.addItem(reasonItem)
+        }
 
         menu.addItem(.separator())
 
@@ -92,7 +108,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(makeItem(title: appState.stopAwakeTitle, action: #selector(stopSession)))
         } else {
             let item = makeItem(title: appState.awakeToggleTitle, action: #selector(startSession))
-            item.isEnabled = appState.canToggleSleepPrevention
+            item.isEnabled = appState.startPreventionUnavailableReason == nil
             menu.addItem(item)
         }
 
@@ -125,9 +141,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func startSession() {
-        guard appState.canToggleSleepPrevention else {
+        if let reason = appState.startPreventionUnavailableReason {
+            transientStatusMessage = reason
+            showMenu()
             return
         }
+
         appState.setSleepPreventionEnabled(true)
     }
 
