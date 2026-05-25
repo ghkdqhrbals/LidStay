@@ -64,8 +64,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let newValue = !appState.isSleepPreventionEnabled
         guard !newValue else {
             if let reason = appState.startPreventionUnavailableReason {
-                transientStatusMessage = reason
-                showMenuAfterCurrentEvent()
+                showUnavailableStartMenu(reason: reason)
                 return
             }
 
@@ -84,9 +83,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func showMenuAfterCurrentEvent() {
-        DispatchQueue.main.async { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
             self?.showMenu()
         }
+    }
+
+    private func showUnavailableStartMenu(reason: String) {
+        appState.settleMenuBarIconAnimation()
+        transientStatusMessage = reason
+        showMenuAfterCurrentEvent()
     }
 
     func menuDidClose(_ menu: NSMenu) {
@@ -148,8 +153,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func startSession() {
         if let reason = appState.startPreventionUnavailableReason {
-            transientStatusMessage = reason
-            showMenuAfterCurrentEvent()
+            showUnavailableStartMenu(reason: reason)
             return
         }
 

@@ -668,6 +668,12 @@ final class AppState: ObservableObject {
         isSleepPreventionEnabled = enabled
     }
 
+    func settleMenuBarIconAnimation() {
+        iconAnimationTask?.cancel()
+        iconAnimationTask = nil
+        menuBarIconAnimationName = nil
+    }
+
     func startSession(duration: TimeInterval?) {
         if let duration {
             sessionEndDate = Date().addingTimeInterval(duration)
