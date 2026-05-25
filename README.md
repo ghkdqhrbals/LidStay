@@ -1,6 +1,6 @@
 # LidStay
 
-<img width="287" height="369" alt="image" src="https://github.com/user-attachments/assets/b6877ba6-7f66-4c0b-a8ec-efd756280177" />
+<img width="200" height="183" alt="image" src="https://github.com/user-attachments/assets/14374f3e-198e-450d-a55e-e25a074cb64e" />
 
 
 Close the lid. Keep your Mac running.
