@@ -296,8 +296,8 @@ final class AppState: ObservableObject {
     }
 
     var networkRecoveryRetrySeconds: Int {
-        let parsed = Int(networkRecoveryRetrySecondsText) ?? 30
-        return min(600, max(5, parsed))
+        let parsed = Int(networkRecoveryRetrySecondsText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 30
+        return min(600, max(1, parsed))
     }
 
     var networkRecoveryStatusTitle: String {
@@ -1095,7 +1095,11 @@ final class AppState: ObservableObject {
     }
 
     func selectNetworkRecoveryRetrySeconds(_ seconds: Int) {
-        networkRecoveryRetrySecondsText = String(min(600, max(5, seconds)))
+        networkRecoveryRetrySecondsText = String(min(600, max(1, seconds)))
+    }
+
+    func normalizeNetworkRecoveryRetrySecondsText() {
+        selectNetworkRecoveryRetrySeconds(networkRecoveryRetrySeconds)
     }
 
     func selectNetworkRecoverySSID(_ ssid: String) {

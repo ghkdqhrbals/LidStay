@@ -110,6 +110,24 @@ final class NetworkRecoveryControllerTests: XCTestCase {
         )
     }
 
+    func testSkipsHotspotJoinWhenAlreadyConnectedToTargetSSID() {
+        XCTAssertTrue(
+            NetworkRecoveryConnector.shouldSkipHotspotJoin(
+                currentSSID: " Min iPhone ",
+                targetSSID: "Min iPhone"
+            )
+        )
+    }
+
+    func testDoesNotSkipHotspotJoinForDifferentSSID() {
+        XCTAssertFalse(
+            NetworkRecoveryConnector.shouldSkipHotspotJoin(
+                currentSSID: "Office Wi-Fi",
+                targetSSID: "Min iPhone"
+            )
+        )
+    }
+
     func testSatisfiedNonWiFiPathIsUsableWithoutWiFiAssociation() {
         XCTAssertTrue(
             NetworkRecoveryConnector.isUsableNetworkPath(

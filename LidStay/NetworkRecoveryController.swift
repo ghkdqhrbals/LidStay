@@ -145,6 +145,13 @@ final class NetworkRecoveryController {
             return
         }
 
+        if isAlreadyConnectedToConfiguredHotspot() {
+            cancelPendingWork()
+            let ssid = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+            setStatus(.connected(ssid))
+            return
+        }
+
         scheduleConnectionAttempt()
     }
 
@@ -157,7 +164,7 @@ final class NetworkRecoveryController {
         }
 
         let ssid = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
-        let delay = max(5, Int(configuration.retryDelay.rounded()))
+        let delay = max(1, Int(configuration.retryDelay.rounded()))
         setStatus(.waitingToRetry(delay))
         onEvent?(NetworkRecoveryEvent(detail: "Network unavailable; will try hotspot \"\(ssid)\" in \(delay)s", succeeded: true))
 
@@ -181,6 +188,12 @@ final class NetworkRecoveryController {
         if let lastPath, isPathCurrentlyUsable(lastPath) {
             setStatus(.monitoring)
             onEvent?(NetworkRecoveryEvent(detail: "Skip hotspot connection because network recovered before retry", succeeded: true))
+            return
+        }
+
+        if isAlreadyConnectedToConfiguredHotspot() {
+            setStatus(.connected(ssid))
+            onEvent?(NetworkRecoveryEvent(detail: "Already connected to hotspot \"\(ssid)\"; no recovery action needed", succeeded: true))
             return
         }
 
@@ -278,6 +291,13 @@ final class NetworkRecoveryController {
             || path.usesInterfaceType(.cellular)
             || path.usesInterfaceType(.other)
         return path.usesInterfaceType(.wifi) && !hasNonWiFiInterface
+    }
+
+    private func isAlreadyConnectedToConfiguredHotspot() -> Bool {
+        NetworkRecoveryConnector.shouldSkipHotspotJoin(
+            currentSSID: NetworkRecoveryConnector.currentAssociatedWiFiSSID(),
+            targetSSID: configuration.hotspotSSID
+        )
     }
 
     private static func pathSummary(_ path: NWPath) -> String {
@@ -389,6 +409,13 @@ enum NetworkRecoveryConnector {
             }
             record("Wi-Fi device detected: \(device)")
 
+            let currentSSIDBefore = currentWirelessNetworkName(device: device)
+            record("Current Wi-Fi before recovery: \(currentSSIDBefore.map { "\"\($0)\"" } ?? "not associated")")
+            if shouldSkipHotspotJoin(currentSSID: currentSSIDBefore, targetSSID: targetSSID) {
+                record("Already connected to hotspot \"\(targetSSID)\"; skipping Wi-Fi commands")
+                return finish(.success)
+            }
+
             let serviceResult = ensureWiFiServiceEnabled(device: device, record: record)
             if case .failed(let message) = serviceResult {
                 return finish(.failed(message))
@@ -398,9 +425,6 @@ enum NetworkRecoveryConnector {
             if case .failed(let message) = powerResult {
                 return finish(.failed(message))
             }
-
-            let currentSSIDBefore = currentWirelessNetworkName(device: device)
-            record("Current Wi-Fi before recovery: \(currentSSIDBefore.map { "\"\($0)\"" } ?? "not associated")")
 
             let firstPass = await connectOnePass(
                 device: device,
@@ -480,6 +504,15 @@ enum NetworkRecoveryConnector {
         }
 
         return !currentWiFiSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    static func shouldSkipHotspotJoin(currentSSID: String?, targetSSID: String) -> Bool {
+        guard let currentSSID else {
+            return false
+        }
+
+        return currentSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+            == targetSSID.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func currentAssociatedWiFiSSID() -> String? {

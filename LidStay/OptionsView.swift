@@ -112,15 +112,18 @@ struct OptionsView: View {
                             .buttonStyle(.borderless)
                             .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
                             .help(isKorean ? "근처 Wi-Fi 목록 다시 확인" : "Refresh nearby Wi-Fi networks")
-                            Picker("", selection: networkRecoveryRetryBinding) {
-                                Text("15s").tag(15)
-                                Text("30s").tag(30)
-                                Text("1m").tag(60)
-                                Text("3m").tag(180)
-                            }
-                            .labelsHidden()
-                            .frame(width: 78)
-                            .disabled(!appState.networkRecoveryEnabled)
+                            TextField("30", text: $appState.networkRecoveryRetrySecondsText)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.body.monospacedDigit())
+                                .frame(width: 50)
+                                .onSubmit {
+                                    appState.normalizeNetworkRecoveryRetrySecondsText()
+                                }
+                                .disabled(!appState.networkRecoveryEnabled)
+                            Text(isKorean ? "초" : "sec")
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .disabled(!appState.networkRecoveryEnabled)
                         }
 
                         HStack(spacing: 8) {
@@ -375,17 +378,6 @@ struct OptionsView: View {
             },
             set: { value in
                 appState.selectLowBatteryLimit(Int(value.rounded()))
-            }
-        )
-    }
-
-    private var networkRecoveryRetryBinding: Binding<Int> {
-        Binding(
-            get: {
-                appState.networkRecoveryRetrySeconds
-            },
-            set: { seconds in
-                appState.selectNetworkRecoveryRetrySeconds(seconds)
             }
         )
     }
