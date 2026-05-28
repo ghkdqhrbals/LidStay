@@ -84,6 +84,12 @@ final class NetworkRecoveryControllerTests: XCTestCase {
         )
     }
 
+    func testTreatsCouldNotFindNetworkOutputAsJoinFailure() {
+        XCTAssertTrue(
+            NetworkRecoveryConnector.commandOutputReportsJoinFailure("Could not find network Min iPhone.")
+        )
+    }
+
     func testParsesLocalNetworkNamesFromSystemProfiler() {
         let output = """
         Wi-Fi:

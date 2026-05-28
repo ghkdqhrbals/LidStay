@@ -364,37 +364,32 @@ enum NetworkRecoveryConnector {
                 return finish(.failed(message))
             }
 
-            let coreWLANResult = await connectUsingCoreWLAN(toSSID: targetSSID, password: password, record: record)
-            if coreWLANResult == .success {
-                let result = await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "CoreWLAN", record: record)
-                return finish(result)
+            let firstPass = await connectOnePass(
+                device: device,
+                targetSSID: targetSSID,
+                password: password,
+                label: "initial",
+                record: record
+            )
+            if firstPass.result == .success {
+                return finish(firstPass.result)
             }
 
-            record("Fallback command: \(redactedAirportNetworkCommand(device: device, ssid: targetSSID, password: password))")
-            let networkSetupResult = runProcess(
-                executablePath: "/usr/sbin/networksetup",
-                arguments: setAirportNetworkArguments(device: device, ssid: targetSSID, password: password)
-            )
-            record(
-                "networksetup exit=\(networkSetupResult.exitCode), stdout=\"\(conciseCommandOutput(networkSetupResult.stdout))\", stderr=\"\(conciseCommandOutput(networkSetupResult.stderr))\"",
-                succeeded: networkSetupResult.exitCode == 0 && !commandReportsJoinFailure(networkSetupResult)
-            )
-
-            if networkSetupResult.exitCode == 0, !commandReportsJoinFailure(networkSetupResult) {
-                let result = await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "networksetup", record: record)
-                return finish(result)
-            }
-
-            let networkSetupMessage = commandFailureMessage(networkSetupResult)
-            if case .failed(let coreWLANMessage) = coreWLANResult {
-                if coreWLANMessage == coreWLANNetworkNotVisibleMessage(targetSSID: targetSSID),
-                   !isNetworkVisibleToSystem(targetSSID) {
-                    return finish(.failed("\(hotspotNotBroadcastingMessage(targetSSID: targetSSID)); networksetup failed: \(networkSetupMessage)"))
+            if currentSSIDBefore == nil, firstPass.hotspotWasNotFound {
+                let refreshed = refreshWiFiRadio(device: device, record: record)
+                if refreshed {
+                    let secondPass = await connectOnePass(
+                        device: device,
+                        targetSSID: targetSSID,
+                        password: password,
+                        label: "after Wi-Fi refresh",
+                        record: record
+                    )
+                    return finish(secondPass.result)
                 }
-                return finish(.failed("CoreWLAN failed: \(coreWLANMessage); networksetup failed: \(networkSetupMessage)"))
             }
 
-            return finish(.failed(networkSetupMessage))
+            return finish(firstPass.result)
         }.value
     }
 
@@ -418,6 +413,15 @@ enum NetworkRecoveryConnector {
         }
 
         return "/usr/sbin/networksetup " + arguments.map(logQuotedArgument).joined(separator: " ")
+    }
+
+    static func commandOutputReportsJoinFailure(_ message: String) -> Bool {
+        message.localizedCaseInsensitiveContains("failed to join network")
+            || message.localizedCaseInsensitiveContains("could not be joined")
+            || message.localizedCaseInsensitiveContains("could not find network")
+            || message.localizedCaseInsensitiveContains("network not found")
+            || message.localizedCaseInsensitiveContains("not found")
+            || message.localizedCaseInsensitiveContains("error:")
     }
 
     static func connectionVerificationFailureMessage(
@@ -602,6 +606,60 @@ enum NetworkRecoveryConnector {
         return currentNetworkName(from: result.stdout)
     }
 
+    private static func connectOnePass(
+        device: String,
+        targetSSID: String,
+        password: String,
+        label: String,
+        record: @escaping (String, Bool) -> Void
+    ) async -> NetworkRecoveryAttemptPassReport {
+        record("Hotspot connection pass: \(label)", true)
+
+        let coreWLANResult = await connectUsingCoreWLAN(toSSID: targetSSID, password: password, record: record)
+        if coreWLANResult == .success {
+            let result = await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "CoreWLAN", record: record)
+            return NetworkRecoveryAttemptPassReport(result: result, hotspotWasNotFound: false)
+        }
+
+        record("Fallback command: \(redactedAirportNetworkCommand(device: device, ssid: targetSSID, password: password))", true)
+        let networkSetupResult = runProcess(
+            executablePath: "/usr/sbin/networksetup",
+            arguments: setAirportNetworkArguments(device: device, ssid: targetSSID, password: password)
+        )
+        let networkSetupJoinFailed = commandReportsJoinFailure(networkSetupResult)
+        record(
+            "networksetup exit=\(networkSetupResult.exitCode), stdout=\"\(conciseCommandOutput(networkSetupResult.stdout))\", stderr=\"\(conciseCommandOutput(networkSetupResult.stderr))\"",
+            networkSetupResult.exitCode == 0 && !networkSetupJoinFailed
+        )
+
+        if networkSetupResult.exitCode == 0, !networkSetupJoinFailed {
+            let result = await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "networksetup", record: record)
+            return NetworkRecoveryAttemptPassReport(result: result, hotspotWasNotFound: false)
+        }
+
+        let networkSetupMessage = commandFailureMessage(networkSetupResult)
+        let networkSetupNotFound = commandReportsNetworkNotFound(networkSetupResult)
+        if case .failed(let coreWLANMessage) = coreWLANResult {
+            let coreWLANNotVisible = coreWLANMessage == coreWLANNetworkNotVisibleMessage(targetSSID: targetSSID)
+            if coreWLANNotVisible, !isNetworkVisibleToSystem(targetSSID) {
+                return NetworkRecoveryAttemptPassReport(
+                    result: .failed("\(hotspotNotBroadcastingMessage(targetSSID: targetSSID)); networksetup failed: \(networkSetupMessage)"),
+                    hotspotWasNotFound: true
+                )
+            }
+
+            return NetworkRecoveryAttemptPassReport(
+                result: .failed("CoreWLAN failed: \(coreWLANMessage); networksetup failed: \(networkSetupMessage)"),
+                hotspotWasNotFound: coreWLANNotVisible || networkSetupNotFound
+            )
+        }
+
+        return NetworkRecoveryAttemptPassReport(
+            result: .failed(networkSetupMessage),
+            hotspotWasNotFound: networkSetupNotFound
+        )
+    }
+
     private static func connectUsingCoreWLAN(
         toSSID ssid: String,
         password: String,
@@ -726,6 +784,42 @@ enum NetworkRecoveryConnector {
         return .success
     }
 
+    private static func refreshWiFiRadio(
+        device: String,
+        record: ((String, Bool) -> Void)? = nil
+    ) -> Bool {
+        record?("Hotspot was not found while Wi-Fi is disconnected; refreshing Wi-Fi radio once", true)
+
+        let powerOffResult = runProcess(
+            executablePath: "/usr/sbin/networksetup",
+            arguments: setAirportPowerArguments(device: device, isOn: false)
+        )
+        record?(
+            "Wi-Fi power off exit=\(powerOffResult.exitCode), stdout=\"\(conciseCommandOutput(powerOffResult.stdout))\", stderr=\"\(conciseCommandOutput(powerOffResult.stderr))\"",
+            powerOffResult.exitCode == 0
+        )
+        guard powerOffResult.exitCode == 0 else {
+            return false
+        }
+
+        Thread.sleep(forTimeInterval: 2)
+
+        let powerOnResult = runProcess(
+            executablePath: "/usr/sbin/networksetup",
+            arguments: setAirportPowerArguments(device: device, isOn: true)
+        )
+        record?(
+            "Wi-Fi power on exit=\(powerOnResult.exitCode), stdout=\"\(conciseCommandOutput(powerOnResult.stdout))\", stderr=\"\(conciseCommandOutput(powerOnResult.stderr))\"",
+            powerOnResult.exitCode == 0
+        )
+        guard powerOnResult.exitCode == 0 else {
+            return false
+        }
+
+        Thread.sleep(forTimeInterval: 4)
+        return true
+    }
+
     private static func conciseCommandOutput(_ output: String) -> String {
         let trimmed = output
             .replacingOccurrences(of: "\n", with: " ")
@@ -797,9 +891,14 @@ enum NetworkRecoveryConnector {
 
     private static func commandReportsJoinFailure(_ result: ProcessResult) -> Bool {
         let message = "\(result.stdout)\n\(result.stderr)"
-        return message.localizedCaseInsensitiveContains("failed to join network")
-            || message.localizedCaseInsensitiveContains("could not be joined")
-            || message.localizedCaseInsensitiveContains("error:")
+        return commandOutputReportsJoinFailure(message)
+    }
+
+    private static func commandReportsNetworkNotFound(_ result: ProcessResult) -> Bool {
+        let message = "\(result.stdout)\n\(result.stderr)"
+        return message.localizedCaseInsensitiveContains("could not find network")
+            || message.localizedCaseInsensitiveContains("network not found")
+            || message.localizedCaseInsensitiveContains("not found")
     }
 
     private static func runProcess(executablePath: String, arguments: [String]) -> ProcessResult {
@@ -841,6 +940,11 @@ private struct VisibleNetworkScanResult {
     let network: CWNetwork?
     let targetedCount: Int
     let allCount: Int
+}
+
+private struct NetworkRecoveryAttemptPassReport {
+    let result: NetworkRecoveryAttemptResult
+    let hotspotWasNotFound: Bool
 }
 
 private struct ProcessResult {
