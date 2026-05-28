@@ -356,13 +356,18 @@ enum NetworkRecoveryConnector {
             }
             record("Wi-Fi device detected: \(device)")
 
-            let currentSSIDBefore = currentWirelessNetworkName(device: device)
-            record("Current Wi-Fi before recovery: \(currentSSIDBefore.map { "\"\($0)\"" } ?? "not associated")")
+            let serviceResult = ensureWiFiServiceEnabled(device: device, record: record)
+            if case .failed(let message) = serviceResult {
+                return finish(.failed(message))
+            }
 
             let powerResult = ensureWiFiPowerOn(device: device, record: record)
             if case .failed(let message) = powerResult {
                 return finish(.failed(message))
             }
+
+            let currentSSIDBefore = currentWirelessNetworkName(device: device)
+            record("Current Wi-Fi before recovery: \(currentSSIDBefore.map { "\"\($0)\"" } ?? "not associated")")
 
             let firstPass = await connectOnePass(
                 device: device,
@@ -422,6 +427,37 @@ enum NetworkRecoveryConnector {
             || message.localizedCaseInsensitiveContains("network not found")
             || message.localizedCaseInsensitiveContains("not found")
             || message.localizedCaseInsensitiveContains("error:")
+    }
+
+    static func networkServiceName(forDevice targetDevice: String, from output: String) -> String? {
+        var pendingServiceName: String?
+
+        for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = String(rawLine).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if line.hasPrefix("("), !line.contains("Hardware Port:") {
+                guard let closingParenthesis = line.firstIndex(of: ")") else {
+                    pendingServiceName = nil
+                    continue
+                }
+
+                pendingServiceName = String(line[line.index(after: closingParenthesis)...])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .trimmingDisabledNetworkServiceMarker()
+                continue
+            }
+
+            guard line.hasPrefix("(Hardware Port:"),
+                  line.contains("Device: \(targetDevice)") else {
+                continue
+            }
+
+            if let pendingServiceName, !pendingServiceName.isEmpty {
+                return pendingServiceName
+            }
+        }
+
+        return nil
     }
 
     static func connectionVerificationFailureMessage(
@@ -547,6 +583,15 @@ enum NetworkRecoveryConnector {
         }
 
         return .success(device)
+    }
+
+    private static func wifiNetworkServiceName(device: String) -> String? {
+        let result = runProcess(executablePath: "/usr/sbin/networksetup", arguments: ["-listnetworkserviceorder"])
+        guard result.exitCode == 0 else {
+            return nil
+        }
+
+        return networkServiceName(forDevice: device, from: result.stdout)
     }
 
     private static func verifiedConnectionResult(
@@ -756,6 +801,33 @@ enum NetworkRecoveryConnector {
         nearbyNetworkNames().names.contains(ssid)
     }
 
+    private static func ensureWiFiServiceEnabled(
+        device: String,
+        record: ((String, Bool) -> Void)? = nil
+    ) -> NetworkRecoveryAttemptResult {
+        guard let serviceName = wifiNetworkServiceName(device: device) else {
+            record?("Wi-Fi network service lookup failed for device \(device); continuing with airport power only", false)
+            return .success
+        }
+
+        record?("Wi-Fi network service detected: \"\(serviceName)\"", true)
+        let result = runProcess(
+            executablePath: "/usr/sbin/networksetup",
+            arguments: ["-setnetworkserviceenabled", serviceName, "on"]
+        )
+        record?(
+            "Wi-Fi network service enable exit=\(result.exitCode), stdout=\"\(conciseCommandOutput(result.stdout))\", stderr=\"\(conciseCommandOutput(result.stderr))\"",
+            result.exitCode == 0
+        )
+
+        guard result.exitCode == 0 else {
+            return .failed(commandFailureMessage(result))
+        }
+
+        Thread.sleep(forTimeInterval: 1)
+        return .success
+    }
+
     private static func ensureWiFiPowerOn(
         device: String,
         record: ((String, Bool) -> Void)? = nil
@@ -951,4 +1023,10 @@ private struct ProcessResult {
     let exitCode: Int32
     let stdout: String
     let stderr: String
+}
+
+private extension String {
+    func trimmingDisabledNetworkServiceMarker() -> String {
+        hasPrefix("*") ? String(dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines) : self
+    }
 }

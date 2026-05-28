@@ -90,6 +90,25 @@ final class NetworkRecoveryControllerTests: XCTestCase {
         )
     }
 
+    func testParsesNetworkServiceNameForWiFiDevice() {
+        let output = """
+        An asterisk (*) denotes that a network service is disabled.
+        (1) LG Monitor Controls
+        (Hardware Port: LG Monitor Controls, Device: usbmodem411NTEP552522)
+
+        (2) *Wi-Fi
+        (Hardware Port: Wi-Fi, Device: en0)
+
+        (3) iPhone USB
+        (Hardware Port: iPhone USB, Device: en9)
+        """
+
+        XCTAssertEqual(
+            NetworkRecoveryConnector.networkServiceName(forDevice: "en0", from: output),
+            "Wi-Fi"
+        )
+    }
+
     func testParsesLocalNetworkNamesFromSystemProfiler() {
         let output = """
         Wi-Fi:
