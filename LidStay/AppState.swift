@@ -161,7 +161,7 @@ final class AppState: ObservableObject {
             Task { @MainActor in
                 self?.powerSourceState = snapshot.state
                 self?.batteryPercentage = snapshot.batteryPercentage
-                self?.refreshAssertion()
+                self?.refreshAssertion(forceClamshellReapply: true)
             }
         }
         powerSourceMonitor.start()
@@ -972,46 +972,50 @@ final class AppState: ObservableObject {
         startSession(duration: minutes * 60)
     }
 
-    private func refreshAssertion() {
+    private func refreshAssertion(forceClamshellReapply: Bool = false) {
         expireSessionIfNeeded()
         let previousState = assertionState
 
         guard isSleepPreventionEnabled else {
             assertionController.release()
-            updateAssertionState(.stopped, previousState: previousState)
+            updateAssertionState(.stopped, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             writeCLIStatus()
             return
         }
 
         switch powerSourceState {
         case .acPower:
-            updateAssertionState(assertionController.acquire(), previousState: previousState)
+            updateAssertionState(assertionController.acquire(), previousState: previousState, forceClamshellReapply: forceClamshellReapply)
         case .battery:
             if allowOnBattery {
                 if autoPauseOnLowBattery, let batteryPercentage, batteryPercentage <= lowBatteryLimit {
                     assertionController.release()
-                    updateAssertionState(.batteryBlocked, previousState: previousState)
+                    updateAssertionState(.batteryBlocked, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
                     writeCLIStatus()
                     return
                 }
-                updateAssertionState(assertionController.acquire(), previousState: previousState)
+                updateAssertionState(assertionController.acquire(), previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             } else {
                 assertionController.release()
-                updateAssertionState(.batteryBlocked, previousState: previousState)
+                updateAssertionState(.batteryBlocked, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             }
         case .unknown:
             if allowOnBattery {
-                updateAssertionState(assertionController.acquire(), previousState: previousState)
+                updateAssertionState(assertionController.acquire(), previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             } else {
                 assertionController.release()
-                updateAssertionState(.acPowerOnly, previousState: previousState)
+                updateAssertionState(.acPowerOnly, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             }
         }
 
         writeCLIStatus()
     }
 
-    private func updateAssertionState(_ newState: PowerAssertionState, previousState: PowerAssertionState) {
+    private func updateAssertionState(
+        _ newState: PowerAssertionState,
+        previousState: PowerAssertionState,
+        forceClamshellReapply: Bool = false
+    ) {
         assertionState = newState
 
         if previousState != .active, newState == .active {
@@ -1036,7 +1040,7 @@ final class AppState: ObservableObject {
             )
         }
 
-        updateClamshellSleepState(for: newState)
+        updateClamshellSleepState(for: newState, force: forceClamshellReapply)
         updateDisplayBrightnessForClosedLid(for: newState)
 
         guard isSleepPreventionEnabled, previousState == .active, newState != .active else {
@@ -1277,9 +1281,9 @@ final class AppState: ObservableObject {
             .appendingPathComponent("Library/Application Support/LidStay/debug.log")
     }
 
-    private func updateClamshellSleepState(for state: PowerAssertionState) {
+    private func updateClamshellSleepState(for state: PowerAssertionState, force: Bool = false) {
         let shouldDisableClamshellSleep = state == .active
-        guard let result = assertionController.setClamshellSleepDisabled(shouldDisableClamshellSleep) else {
+        guard let result = assertionController.setClamshellSleepDisabled(shouldDisableClamshellSleep, force: force) else {
             return
         }
 
