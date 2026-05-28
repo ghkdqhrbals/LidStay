@@ -1160,7 +1160,7 @@ final class AppState: ObservableObject {
         appendDebugEvent(title: "Network", detail: "Testing hotspot connection to \"\(ssid)\"", succeeded: true)
 
         Task { [weak self] in
-            let result = await NetworkRecoveryConnector.connect(
+            let report = await NetworkRecoveryConnector.connectWithDiagnostics(
                 toSSID: ssid,
                 password: self?.networkRecoveryPasswordText ?? ""
             )
@@ -1169,8 +1169,12 @@ final class AppState: ObservableObject {
                 return
             }
 
+            for event in report.events {
+                self.appendDebugEvent(title: "Network", detail: event.detail, succeeded: event.succeeded)
+            }
+
             self.isNetworkRecoveryTestInProgress = false
-            switch result {
+            switch report.result {
             case .success:
                 self.networkRecoveryStatus = .connected(ssid)
                 self.networkRecoveryTestMessage = self.language == .korean ? "연결 성공" : "Connected"

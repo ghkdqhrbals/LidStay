@@ -73,6 +73,17 @@ final class NetworkRecoveryControllerTests: XCTestCase {
         )
     }
 
+    func testRedactsPasswordFromAirportNetworkCommandLog() {
+        XCTAssertEqual(
+            NetworkRecoveryConnector.redactedAirportNetworkCommand(
+                device: "en0",
+                ssid: "Min iPhone",
+                password: "secret-password"
+            ),
+            "/usr/sbin/networksetup -setairportnetwork en0 \"Min iPhone\" <redacted>"
+        )
+    }
+
     func testParsesLocalNetworkNamesFromSystemProfiler() {
         let output = """
         Wi-Fi:

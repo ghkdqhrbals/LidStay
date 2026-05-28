@@ -27,6 +27,11 @@ struct NetworkRecoveryEvent: Equatable {
     let succeeded: Bool
 }
 
+struct NetworkRecoveryAttemptReport: Equatable {
+    let result: NetworkRecoveryAttemptResult
+    let events: [NetworkRecoveryEvent]
+}
+
 @MainActor
 final class NetworkRecoveryController {
     var onStatusChange: ((NetworkRecoveryStatus) -> Void)?
@@ -45,6 +50,7 @@ final class NetworkRecoveryController {
     private var status: NetworkRecoveryStatus = .off
     private var retryTask: Task<Void, Never>?
     private var connectionTask: Task<Void, Never>?
+    private var lastPathSummary: String?
 
     func update(configuration newConfiguration: NetworkRecoveryConfiguration) {
         guard newConfiguration != configuration else {
@@ -60,6 +66,7 @@ final class NetworkRecoveryController {
         monitor?.cancel()
         monitor = nil
         lastPath = nil
+        lastPathSummary = nil
         setStatus(.off)
     }
 
@@ -108,6 +115,8 @@ final class NetworkRecoveryController {
     }
 
     private func handlePath(_ path: NWPath) {
+        logPathIfNeeded(path)
+
         guard configuration.isEnabled else {
             setStatus(.off)
             return
@@ -127,7 +136,11 @@ final class NetworkRecoveryController {
 
         if path.status == .satisfied {
             cancelPendingWork()
+            let wasMonitoring = status == .monitoring
             setStatus(.monitoring)
+            if !wasMonitoring {
+                onEvent?(NetworkRecoveryEvent(detail: "Network is available; hotspot recovery is standing by", succeeded: true))
+            }
             return
         }
 
@@ -166,6 +179,7 @@ final class NetworkRecoveryController {
 
         guard lastPath?.status != .satisfied else {
             setStatus(.monitoring)
+            onEvent?(NetworkRecoveryEvent(detail: "Skip hotspot connection because network recovered before retry", succeeded: true))
             return
         }
 
@@ -175,12 +189,19 @@ final class NetworkRecoveryController {
         connectionTask?.cancel()
         let hotspotPassword = configuration.hotspotPassword
         connectionTask = Task { [weak self] in
-            let result = await NetworkRecoveryConnector.connect(
+            let report = await NetworkRecoveryConnector.connectWithDiagnostics(
                 toSSID: ssid,
                 password: hotspotPassword
             )
-            self?.handleConnectionResult(result, ssid: ssid)
+            self?.handleConnectionReport(report, ssid: ssid)
         }
+    }
+
+    private func handleConnectionReport(_ report: NetworkRecoveryAttemptReport, ssid: String) {
+        for event in report.events {
+            onEvent?(event)
+        }
+        handleConnectionResult(report.result, ssid: ssid)
     }
 
     private func handleConnectionResult(_ result: NetworkRecoveryAttemptResult, ssid: String) {
@@ -214,6 +235,31 @@ final class NetworkRecoveryController {
 
         status = newStatus
         onStatusChange?(newStatus)
+    }
+
+    private func logPathIfNeeded(_ path: NWPath) {
+        let summary = Self.pathSummary(path)
+        guard summary != lastPathSummary else {
+            return
+        }
+
+        lastPathSummary = summary
+        onEvent?(NetworkRecoveryEvent(detail: summary, succeeded: path.status == .satisfied))
+    }
+
+    private static func pathSummary(_ path: NWPath) -> String {
+        let activeInterfaces = [
+            path.usesInterfaceType(.wifi) ? "wifi" : nil,
+            path.usesInterfaceType(.wiredEthernet) ? "ethernet" : nil,
+            path.usesInterfaceType(.cellular) ? "cellular" : nil,
+            path.usesInterfaceType(.loopback) ? "loopback" : nil,
+            path.usesInterfaceType(.other) ? "other" : nil,
+        ].compactMap { $0 }
+
+        let activeText = activeInterfaces.isEmpty ? "none" : activeInterfaces.joined(separator: ",")
+        let availableText = path.availableInterfaces.map(\.name).joined(separator: ",")
+
+        return "Network path status=\(path.status), reason=\(path.unsatisfiedReason), active=\(activeText), available=\(availableText.isEmpty ? "none" : availableText)"
     }
 }
 
@@ -285,41 +331,70 @@ enum NetworkRecoveryConnector {
     }
 
     static func connect(toSSID ssid: String, password: String = "") async -> NetworkRecoveryAttemptResult {
+        await connectWithDiagnostics(toSSID: ssid, password: password).result
+    }
+
+    static func connectWithDiagnostics(toSSID ssid: String, password: String = "") async -> NetworkRecoveryAttemptReport {
         await Task.detached(priority: .utility) {
-            guard case .success(let device) = wifiDevice() else {
-                return .wifiDeviceUnavailable
+            var events: [NetworkRecoveryEvent] = []
+
+            func record(_ detail: String, succeeded: Bool = true) {
+                events.append(NetworkRecoveryEvent(detail: detail, succeeded: succeeded))
+            }
+
+            func finish(_ result: NetworkRecoveryAttemptResult) -> NetworkRecoveryAttemptReport {
+                NetworkRecoveryAttemptReport(result: result, events: events)
             }
 
             let targetSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
-            let powerResult = ensureWiFiPowerOn(device: device)
+            let hasPassword = !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            record("Hotspot recovery started: target=\"\(targetSSID)\", password=\(hasPassword ? "set" : "not set")")
+
+            guard case .success(let device) = wifiDevice() else {
+                record("Wi-Fi device lookup failed", succeeded: false)
+                return finish(.wifiDeviceUnavailable)
+            }
+            record("Wi-Fi device detected: \(device)")
+
+            let currentSSIDBefore = currentWirelessNetworkName(device: device)
+            record("Current Wi-Fi before recovery: \(currentSSIDBefore.map { "\"\($0)\"" } ?? "not associated")")
+
+            let powerResult = ensureWiFiPowerOn(device: device, record: record)
             if case .failed(let message) = powerResult {
-                return .failed(message)
+                return finish(.failed(message))
             }
 
-            let coreWLANResult = await connectUsingCoreWLAN(toSSID: targetSSID, password: password)
+            let coreWLANResult = await connectUsingCoreWLAN(toSSID: targetSSID, password: password, record: record)
             if coreWLANResult == .success {
-                return await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "CoreWLAN")
+                let result = await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "CoreWLAN", record: record)
+                return finish(result)
             }
 
+            record("Fallback command: \(redactedAirportNetworkCommand(device: device, ssid: targetSSID, password: password))")
             let networkSetupResult = runProcess(
                 executablePath: "/usr/sbin/networksetup",
                 arguments: setAirportNetworkArguments(device: device, ssid: targetSSID, password: password)
             )
+            record(
+                "networksetup exit=\(networkSetupResult.exitCode), stdout=\"\(conciseCommandOutput(networkSetupResult.stdout))\", stderr=\"\(conciseCommandOutput(networkSetupResult.stderr))\"",
+                succeeded: networkSetupResult.exitCode == 0 && !commandReportsJoinFailure(networkSetupResult)
+            )
 
             if networkSetupResult.exitCode == 0, !commandReportsJoinFailure(networkSetupResult) {
-                return await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "networksetup")
+                let result = await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "networksetup", record: record)
+                return finish(result)
             }
 
             let networkSetupMessage = commandFailureMessage(networkSetupResult)
             if case .failed(let coreWLANMessage) = coreWLANResult {
                 if coreWLANMessage == coreWLANNetworkNotVisibleMessage(targetSSID: targetSSID),
                    !isNetworkVisibleToSystem(targetSSID) {
-                    return .failed("\(hotspotNotBroadcastingMessage(targetSSID: targetSSID)); networksetup failed: \(networkSetupMessage)")
+                    return finish(.failed("\(hotspotNotBroadcastingMessage(targetSSID: targetSSID)); networksetup failed: \(networkSetupMessage)"))
                 }
-                return .failed("CoreWLAN failed: \(coreWLANMessage); networksetup failed: \(networkSetupMessage)")
+                return finish(.failed("CoreWLAN failed: \(coreWLANMessage); networksetup failed: \(networkSetupMessage)"))
             }
 
-            return .failed(networkSetupMessage)
+            return finish(.failed(networkSetupMessage))
         }.value
     }
 
@@ -334,6 +409,15 @@ enum NetworkRecoveryConnector {
 
     static func setAirportPowerArguments(device: String, isOn: Bool) -> [String] {
         ["-setairportpower", device, isOn ? "on" : "off"]
+    }
+
+    static func redactedAirportNetworkCommand(device: String, ssid: String, password: String) -> String {
+        var arguments = setAirportNetworkArguments(device: device, ssid: ssid, password: password)
+        if !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            arguments[arguments.count - 1] = "<redacted>"
+        }
+
+        return "/usr/sbin/networksetup " + arguments.map(logQuotedArgument).joined(separator: " ")
     }
 
     static func connectionVerificationFailureMessage(
@@ -464,14 +548,18 @@ enum NetworkRecoveryConnector {
     private static func verifiedConnectionResult(
         device: String,
         targetSSID: String,
-        method: String
+        method: String,
+        record: ((String, Bool) -> Void)? = nil
     ) async -> NetworkRecoveryAttemptResult {
         let trimmedTargetSSID = targetSSID.trimmingCharacters(in: .whitespacesAndNewlines)
         var lastCurrentSSID: String?
 
+        record?("Verifying Wi-Fi join after \(method)", true)
         for attempt in 0..<12 {
             lastCurrentSSID = currentWirelessNetworkName(device: device)
+            record?("Verification \(attempt + 1)/12: current=\(lastCurrentSSID.map { "\"\($0)\"" } ?? "not associated")", lastCurrentSSID == trimmedTargetSSID)
             if lastCurrentSSID == trimmedTargetSSID {
+                record?("Verified Wi-Fi joined \"\(trimmedTargetSSID)\" using \(method)", true)
                 return .success
             }
 
@@ -485,6 +573,7 @@ enum NetworkRecoveryConnector {
         }
 
         if !isNetworkVisibleToSystem(trimmedTargetSSID) {
+            record?("Verification failed because \"\(trimmedTargetSSID)\" is no longer visible to system scans", false)
             return .failed(hotspotNotBroadcastingMessage(targetSSID: trimmedTargetSSID))
         }
 
@@ -513,24 +602,40 @@ enum NetworkRecoveryConnector {
         return currentNetworkName(from: result.stdout)
     }
 
-    private static func connectUsingCoreWLAN(toSSID ssid: String, password: String) async -> NetworkRecoveryAttemptResult {
+    private static func connectUsingCoreWLAN(
+        toSSID ssid: String,
+        password: String,
+        record: ((String, Bool) -> Void)? = nil
+    ) async -> NetworkRecoveryAttemptResult {
         guard let interface = CWWiFiClient.shared().interface() else {
+            record?("CoreWLAN interface not found", false)
             return .wifiDeviceUnavailable
         }
 
         let targetSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !targetSSID.isEmpty else {
+            record?("CoreWLAN skipped because hotspot name is empty", false)
             return .failed("Hotspot name is empty")
         }
 
         do {
             var selectedNetwork: CWNetwork?
             for attempt in 0..<5 {
-                selectedNetwork = try visibleNetwork(toSSID: targetSSID, interface: interface)
+                let scanResult = try visibleNetwork(toSSID: targetSSID, interface: interface)
+                selectedNetwork = scanResult.network
                 if selectedNetwork != nil {
+                    let channel = selectedNetwork?.wlanChannel?.channelNumber
+                    record?(
+                        "CoreWLAN scan \(attempt + 1)/5 found \"\(targetSSID)\" rssi=\(selectedNetwork?.rssiValue ?? 0), channel=\(channel.map(String.init) ?? "unknown"), targeted=\(scanResult.targetedCount), all=\(scanResult.allCount)",
+                        true
+                    )
                     break
                 }
 
+                record?(
+                    "CoreWLAN scan \(attempt + 1)/5 did not see \"\(targetSSID)\"; targeted=\(scanResult.targetedCount), all=\(scanResult.allCount)",
+                    false
+                )
                 if attempt < 4 {
                     try await Task.sleep(nanoseconds: 1_000_000_000)
                 }
@@ -541,22 +646,32 @@ enum NetworkRecoveryConnector {
             }
 
             let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+            record?("CoreWLAN associate requested for \"\(targetSSID)\"", true)
             try interface.associate(to: selectedNetwork, password: trimmedPassword.isEmpty ? nil : trimmedPassword)
             return .success
         } catch {
+            record?("CoreWLAN failed: \(error.localizedDescription)", false)
             return .failed(error.localizedDescription)
         }
     }
 
-    private static func visibleNetwork(toSSID targetSSID: String, interface: CWInterface) throws -> CWNetwork? {
+    private static func visibleNetwork(toSSID targetSSID: String, interface: CWInterface) throws -> VisibleNetworkScanResult {
         let targetSSIDData = targetSSID.data(using: .utf8)
         let targetedNetworks = try interface.scanForNetworks(withSSID: targetSSIDData)
         if let targetedNetwork = strongestNetwork(named: targetSSID, in: targetedNetworks) {
-            return targetedNetwork
+            return VisibleNetworkScanResult(
+                network: targetedNetwork,
+                targetedCount: targetedNetworks.count,
+                allCount: 0
+            )
         }
 
         let allNetworks = try interface.scanForNetworks(withSSID: nil)
-        return strongestNetwork(named: targetSSID, in: allNetworks)
+        return VisibleNetworkScanResult(
+            network: strongestNetwork(named: targetSSID, in: allNetworks),
+            targetedCount: targetedNetworks.count,
+            allCount: allNetworks.count
+        )
     }
 
     private static func strongestNetwork(named targetSSID: String, in networks: Set<CWNetwork>) -> CWNetwork? {
@@ -583,14 +698,24 @@ enum NetworkRecoveryConnector {
         nearbyNetworkNames().names.contains(ssid)
     }
 
-    private static func ensureWiFiPowerOn(device: String) -> NetworkRecoveryAttemptResult {
-        if CWWiFiClient.shared().interface()?.powerOn() == true {
+    private static func ensureWiFiPowerOn(
+        device: String,
+        record: ((String, Bool) -> Void)? = nil
+    ) -> NetworkRecoveryAttemptResult {
+        let powerOn = CWWiFiClient.shared().interface()?.powerOn()
+        record?("Wi-Fi power state before recovery: \(powerOn.map { $0 ? "on" : "off" } ?? "unknown")", powerOn != false)
+        if powerOn == true {
             return .success
         }
 
+        record?("Command: /usr/sbin/networksetup \(setAirportPowerArguments(device: device, isOn: true).joined(separator: " "))", true)
         let result = runProcess(
             executablePath: "/usr/sbin/networksetup",
             arguments: setAirportPowerArguments(device: device, isOn: true)
+        )
+        record?(
+            "Wi-Fi power command exit=\(result.exitCode), stdout=\"\(conciseCommandOutput(result.stdout))\", stderr=\"\(conciseCommandOutput(result.stderr))\"",
+            result.exitCode == 0
         )
 
         guard result.exitCode == 0 else {
@@ -599,6 +724,30 @@ enum NetworkRecoveryConnector {
 
         Thread.sleep(forTimeInterval: 2)
         return .success
+    }
+
+    private static func conciseCommandOutput(_ output: String) -> String {
+        let trimmed = output
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > 180 else {
+            return trimmed
+        }
+
+        return String(trimmed.prefix(177)) + "..."
+    }
+
+    private static func logQuotedArgument(_ argument: String) -> String {
+        guard !argument.isEmpty else {
+            return "\"\""
+        }
+
+        if argument.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+           !argument.contains("\"") {
+            return argument
+        }
+
+        return "\"\(argument.replacingOccurrences(of: "\"", with: "\\\""))\""
     }
 
     private static func commandFailureMessage(_ result: ProcessResult) -> String {
@@ -686,6 +835,12 @@ private enum WiFiDeviceLookupResult {
 private struct NearbyNetworkScanResult {
     let names: [String]
     let errorMessage: String?
+}
+
+private struct VisibleNetworkScanResult {
+    let network: CWNetwork?
+    let targetedCount: Int
+    let allCount: Int
 }
 
 private struct ProcessResult {
