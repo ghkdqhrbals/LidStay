@@ -116,6 +116,7 @@ final class AppState: ObservableObject {
     @Published private(set) var networkRecoveryStatus: NetworkRecoveryStatus = .off
     @Published private(set) var networkRecoverySSIDCandidates: [String] = []
     @Published private(set) var isNetworkRecoverySSIDRefreshInProgress = false
+    @Published private(set) var networkRecoverySSIDRefreshError: String?
     @Published private var menuBarIconAnimationName: String?
     @Published var durationMinutesText: String {
         didSet {
@@ -315,6 +316,10 @@ final class AppState: ObservableObject {
     var networkRecoveryPickerStatusTitle: String {
         if isNetworkRecoverySSIDRefreshInProgress {
             return language == .korean ? "목록 확인 중" : "Checking networks"
+        }
+
+        if networkRecoverySSIDRefreshError != nil {
+            return language == .korean ? "목록 확인 실패" : "Could not load Wi-Fi"
         }
 
         if networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -989,7 +994,11 @@ final class AppState: ObservableObject {
     }
 
     func selectNetworkRecoverySSID(_ ssid: String) {
-        networkRecoverySSIDText = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+        networkRecoverySSIDText = trimmedSSID
+        if !trimmedSSID.isEmpty {
+            networkRecoveryEnabled = true
+        }
     }
 
     func refreshNetworkRecoverySSIDCandidatesIfNeeded() {
@@ -1007,19 +1016,32 @@ final class AppState: ObservableObject {
 
         isNetworkRecoverySSIDRefreshInProgress = true
         Task { [weak self] in
-            let candidates = await NetworkRecoveryConnector.wirelessNetworkCandidates()
+            let result = await NetworkRecoveryConnector.wirelessNetworkCandidates()
 
             guard let self else {
                 return
             }
 
-            self.networkRecoverySSIDCandidates = candidates
+            switch result {
+            case .success(let candidates):
+                self.networkRecoverySSIDCandidates = candidates
+                self.networkRecoverySSIDRefreshError = nil
+                self.appendDebugEvent(
+                    title: "Network",
+                    detail: "Loaded \(candidates.count) saved Wi-Fi network candidates",
+                    succeeded: true
+                )
+            case .failed(let message):
+                self.networkRecoverySSIDCandidates = []
+                self.networkRecoverySSIDRefreshError = message
+                self.appendDebugEvent(
+                    title: "Network",
+                    detail: "Load saved Wi-Fi networks failed: \(message)",
+                    succeeded: false
+                )
+            }
+
             self.isNetworkRecoverySSIDRefreshInProgress = false
-            self.appendDebugEvent(
-                title: "Network",
-                detail: "Loaded \(candidates.count) saved Wi-Fi network candidates",
-                succeeded: true
-            )
         }
     }
 

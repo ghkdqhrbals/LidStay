@@ -216,32 +216,47 @@ enum NetworkRecoveryAttemptResult: Equatable {
     case failed(String)
 }
 
+enum NetworkRecoveryCandidateResult: Equatable {
+    case success([String])
+    case failed(String)
+}
+
 enum NetworkRecoveryConnector {
-    static func wirelessNetworkCandidates() async -> [String] {
+    static func wirelessNetworkCandidates() async -> NetworkRecoveryCandidateResult {
         await Task.detached(priority: .utility) {
-            guard let device = wifiDeviceName() else {
-                return []
+            switch wifiDevice() {
+            case .success(let device):
+                let currentNetworkResult = runProcess(
+                    executablePath: "/usr/sbin/networksetup",
+                    arguments: ["-getairportnetwork", device]
+                )
+                let preferredNetworksResult = runProcess(
+                    executablePath: "/usr/sbin/networksetup",
+                    arguments: ["-listpreferredwirelessnetworks", device]
+                )
+
+                guard preferredNetworksResult.exitCode == 0 else {
+                    return .failed(commandFailureMessage(preferredNetworksResult))
+                }
+
+                let currentNetwork = currentNetworkResult.exitCode == 0
+                    ? currentNetworkName(from: currentNetworkResult.stdout)
+                    : nil
+                let candidates = uniqueNetworkNames(
+                    [currentNetwork].compactMap { $0 }
+                    + preferredNetworkNames(from: preferredNetworksResult.stdout)
+                )
+
+                return .success(candidates)
+            case .failure(let message):
+                return .failed(message)
             }
-
-            let currentNetworkResult = runProcess(
-                executablePath: "/usr/sbin/networksetup",
-                arguments: ["-getairportnetwork", device]
-            )
-            let preferredNetworksResult = runProcess(
-                executablePath: "/usr/sbin/networksetup",
-                arguments: ["-listpreferredwirelessnetworks", device]
-            )
-
-            return uniqueNetworkNames(
-                [currentNetworkName(from: currentNetworkResult.stdout)].compactMap { $0 }
-                + preferredNetworkNames(from: preferredNetworksResult.stdout)
-            )
         }.value
     }
 
     static func connect(toSSID ssid: String) async -> NetworkRecoveryAttemptResult {
         await Task.detached(priority: .utility) {
-            guard let device = wifiDeviceName() else {
+            guard case .success(let device) = wifiDevice() else {
                 return .wifiDeviceUnavailable
             }
 
@@ -254,12 +269,11 @@ enum NetworkRecoveryConnector {
                 return .success
             }
 
-            let message = result.stderr.isEmpty ? result.stdout : result.stderr
-            return .failed(message.trimmingCharacters(in: .whitespacesAndNewlines))
+            return .failed(commandFailureMessage(result))
         }.value
     }
 
-    static func wifiDeviceName(from output: String = listHardwarePorts()) -> String? {
+    static func wifiDeviceName(from output: String) -> String? {
         var isWiFiPort = false
 
         for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
@@ -324,8 +338,23 @@ enum NetworkRecoveryConnector {
         return uniqueNames
     }
 
-    private static func listHardwarePorts() -> String {
-        runProcess(executablePath: "/usr/sbin/networksetup", arguments: ["-listallhardwareports"]).stdout
+    private static func wifiDevice() -> WiFiDeviceLookupResult {
+        let result = runProcess(executablePath: "/usr/sbin/networksetup", arguments: ["-listallhardwareports"])
+        guard result.exitCode == 0 else {
+            return .failure(commandFailureMessage(result))
+        }
+
+        guard let device = wifiDeviceName(from: result.stdout) else {
+            return .failure("Wi-Fi device not found")
+        }
+
+        return .success(device)
+    }
+
+    private static func commandFailureMessage(_ result: ProcessResult) -> String {
+        let message = result.stderr.isEmpty ? result.stdout : result.stderr
+        let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedMessage.isEmpty ? "networksetup failed with status \(result.exitCode)" : trimmedMessage
     }
 
     private static func runProcess(executablePath: String, arguments: [String]) -> ProcessResult {
@@ -351,6 +380,11 @@ enum NetworkRecoveryConnector {
             return ProcessResult(exitCode: -1, stdout: "", stderr: error.localizedDescription)
         }
     }
+}
+
+private enum WiFiDeviceLookupResult {
+    case success(String)
+    case failure(String)
 }
 
 private struct ProcessResult {
