@@ -120,9 +120,16 @@ struct OptionsView: View {
                         .labelsHidden()
                         .frame(width: 78)
                         .disabled(!appState.networkRecoveryEnabled)
-                        Text(appState.networkRecoveryPickerStatusTitle)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            if appState.isNetworkRecoveryValidationErrorVisible {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundStyle(.red)
+                                    .imageScale(.small)
+                            }
+                            Text(appState.networkRecoveryPickerStatusTitle)
+                                .foregroundStyle(appState.isNetworkRecoveryValidationErrorVisible ? Color.red : Color.secondary)
+                                .lineLimit(1)
+                        }
                     }
                 }
 

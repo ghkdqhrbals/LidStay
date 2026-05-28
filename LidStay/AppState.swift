@@ -354,7 +354,32 @@ final class AppState: ObservableObject {
             return language == .korean ? "핫스팟 선택" : "Choose hotspot"
         }
 
+        if isSelectedNetworkRecoverySSIDUnavailable {
+            return language == .korean ? "iPhone 핫스팟 신호 없음" : "Hotspot not visible"
+        }
+
         return networkRecoveryStatusTitle
+    }
+
+    var isNetworkRecoveryValidationErrorVisible: Bool {
+        guard !isNetworkRecoverySSIDRefreshInProgress else {
+            return false
+        }
+
+        if networkRecoverySSIDRefreshError != nil {
+            return true
+        }
+
+        return isSelectedNetworkRecoverySSIDUnavailable
+    }
+
+    private var isSelectedNetworkRecoverySSIDUnavailable: Bool {
+        let selectedSSID = networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !selectedSSID.isEmpty else {
+            return false
+        }
+
+        return !Set(networkRecoveryNearbySSIDOptions).contains(selectedSSID)
     }
 
     var networkRecoveryTestButtonTitle: String {
