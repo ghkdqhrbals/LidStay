@@ -43,4 +43,24 @@ final class NetworkRecoveryControllerTests: XCTestCase {
             "Home Wi-Fi",
         ])
     }
+
+    func testConnectionVerificationFailureShowsCurrentNetworkMismatch() {
+        XCTAssertEqual(
+            NetworkRecoveryConnector.connectionVerificationFailureMessage(
+                targetSSID: "Min iPhone",
+                currentSSID: "Office Wi-Fi"
+            ),
+            "networksetup finished, but Wi-Fi is still connected to \"Office Wi-Fi\" instead of \"Min iPhone\""
+        )
+    }
+
+    func testConnectionVerificationFailureShowsMissingJoin() {
+        XCTAssertEqual(
+            NetworkRecoveryConnector.connectionVerificationFailureMessage(
+                targetSSID: "Min iPhone",
+                currentSSID: nil
+            ),
+            "networksetup finished, but Wi-Fi did not join \"Min iPhone\""
+        )
+    }
 }

@@ -290,11 +290,19 @@ enum NetworkRecoveryConnector {
             )
 
             if result.exitCode == 0 {
-                return .success
+                return await verifiedConnectionResult(device: device, targetSSID: ssid)
             }
 
             return .failed(commandFailureMessage(result))
         }.value
+    }
+
+    static func connectionVerificationFailureMessage(targetSSID: String, currentSSID: String?) -> String {
+        if let currentSSID, !currentSSID.isEmpty {
+            return "networksetup finished, but Wi-Fi is still connected to \"\(currentSSID)\" instead of \"\(targetSSID)\""
+        }
+
+        return "networksetup finished, but Wi-Fi did not join \"\(targetSSID)\""
     }
 
     static func wifiDeviceName(from output: String) -> String? {
@@ -395,6 +403,47 @@ enum NetworkRecoveryConnector {
         }
 
         return .success(device)
+    }
+
+    private static func verifiedConnectionResult(
+        device: String,
+        targetSSID: String
+    ) async -> NetworkRecoveryAttemptResult {
+        let trimmedTargetSSID = targetSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+        var lastCurrentSSID: String?
+
+        for attempt in 0..<12 {
+            lastCurrentSSID = currentWirelessNetworkName(device: device)
+            if lastCurrentSSID == trimmedTargetSSID {
+                return .success
+            }
+
+            if attempt < 11 {
+                do {
+                    try await Task.sleep(nanoseconds: 750_000_000)
+                } catch {
+                    return .failed("Wi-Fi connection verification was cancelled")
+                }
+            }
+        }
+
+        return .failed(connectionVerificationFailureMessage(
+            targetSSID: trimmedTargetSSID,
+            currentSSID: lastCurrentSSID
+        ))
+    }
+
+    private static func currentWirelessNetworkName(device: String) -> String? {
+        let result = runProcess(
+            executablePath: "/usr/sbin/networksetup",
+            arguments: ["-getairportnetwork", device]
+        )
+
+        guard result.exitCode == 0 else {
+            return nil
+        }
+
+        return currentNetworkName(from: result.stdout)
     }
 
     private static func commandFailureMessage(_ result: ProcessResult) -> String {

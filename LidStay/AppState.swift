@@ -1155,10 +1155,18 @@ final class AppState: ObservableObject {
                 self.appendDebugEvent(title: "Network", detail: "Hotspot test failed: Wi-Fi device not found", succeeded: false)
             case .failed(let message):
                 self.networkRecoveryStatus = .failed(message)
-                self.networkRecoveryTestMessage = self.language == .korean ? "연결 실패" : "Connection failed"
+                self.networkRecoveryTestMessage = self.networkRecoveryConnectionFailureTitle(from: message)
                 self.appendDebugEvent(title: "Network", detail: "Hotspot test failed: \(message)", succeeded: false)
             }
         }
+    }
+
+    private func networkRecoveryConnectionFailureTitle(from message: String) -> String {
+        if message.contains("Wi-Fi is still connected") || message.contains("Wi-Fi did not join") {
+            return language == .korean ? "실제 연결 안 됨" : "Not connected"
+        }
+
+        return language == .korean ? "연결 실패" : "Connection failed"
     }
 
     func showLowBatteryLimitPrompt() {
