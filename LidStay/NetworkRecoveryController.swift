@@ -290,18 +290,25 @@ enum NetworkRecoveryConnector {
                 return .wifiDeviceUnavailable
             }
 
-            let coreWLANResult = connectUsingCoreWLAN(toSSID: ssid, password: password)
+            let targetSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+            let coreWLANResult = connectUsingCoreWLAN(toSSID: targetSSID, password: password)
             if coreWLANResult == .success {
-                return await verifiedConnectionResult(device: device, targetSSID: ssid)
+                return await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "CoreWLAN")
+            }
+
+            if case .failed(let coreWLANMessage) = coreWLANResult,
+               coreWLANMessage == coreWLANNetworkNotVisibleMessage(targetSSID: targetSSID),
+               !isNetworkVisibleToSystem(targetSSID) {
+                return .failed(hotspotNotBroadcastingMessage(targetSSID: targetSSID))
             }
 
             let networkSetupResult = runProcess(
                 executablePath: "/usr/sbin/networksetup",
-                arguments: setAirportNetworkArguments(device: device, ssid: ssid, password: password)
+                arguments: setAirportNetworkArguments(device: device, ssid: targetSSID, password: password)
             )
 
             if networkSetupResult.exitCode == 0, !commandReportsJoinFailure(networkSetupResult) {
-                return await verifiedConnectionResult(device: device, targetSSID: ssid)
+                return await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "networksetup")
             }
 
             let networkSetupMessage = commandFailureMessage(networkSetupResult)
@@ -322,12 +329,20 @@ enum NetworkRecoveryConnector {
         return arguments
     }
 
-    static func connectionVerificationFailureMessage(targetSSID: String, currentSSID: String?) -> String {
+    static func connectionVerificationFailureMessage(
+        targetSSID: String,
+        currentSSID: String?,
+        method: String = "networksetup"
+    ) -> String {
         if let currentSSID, !currentSSID.isEmpty {
-            return "networksetup finished, but Wi-Fi is still connected to \"\(currentSSID)\" instead of \"\(targetSSID)\""
+            return "\(method) finished, but Wi-Fi is still connected to \"\(currentSSID)\" instead of \"\(targetSSID)\""
         }
 
-        return "networksetup finished, but Wi-Fi did not join \"\(targetSSID)\""
+        return "\(method) finished, but Wi-Fi did not join \"\(targetSSID)\""
+    }
+
+    static func hotspotNotBroadcastingMessage(targetSSID: String) -> String {
+        "hotspot \"\(targetSSID)\" is not broadcasting as a regular Wi-Fi network. Open Personal Hotspot on iPhone and keep Allow Others to Join enabled."
     }
 
     static func wifiDeviceName(from output: String) -> String? {
@@ -441,7 +456,8 @@ enum NetworkRecoveryConnector {
 
     private static func verifiedConnectionResult(
         device: String,
-        targetSSID: String
+        targetSSID: String,
+        method: String
     ) async -> NetworkRecoveryAttemptResult {
         let trimmedTargetSSID = targetSSID.trimmingCharacters(in: .whitespacesAndNewlines)
         var lastCurrentSSID: String?
@@ -461,9 +477,14 @@ enum NetworkRecoveryConnector {
             }
         }
 
+        if !isNetworkVisibleToSystem(trimmedTargetSSID) {
+            return .failed(hotspotNotBroadcastingMessage(targetSSID: trimmedTargetSSID))
+        }
+
         return .failed(connectionVerificationFailureMessage(
             targetSSID: trimmedTargetSSID,
-            currentSSID: lastCurrentSSID
+            currentSSID: lastCurrentSSID,
+            method: method
         ))
     }
 
@@ -501,7 +522,7 @@ enum NetworkRecoveryConnector {
                 .filter({ $0.ssid == targetSSID })
                 .sorted(by: { $0.rssiValue > $1.rssiValue })
                 .first else {
-                return .failed("network \"\(targetSSID)\" is not visible to CoreWLAN")
+                return .failed(coreWLANNetworkNotVisibleMessage(targetSSID: targetSSID))
             }
 
             let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -525,10 +546,18 @@ enum NetworkRecoveryConnector {
         return localNetworkNames(fromSystemProfiler: result.stdout)
     }
 
+    private static func isNetworkVisibleToSystem(_ ssid: String) -> Bool {
+        nearbyNetworkNames().names.contains(ssid)
+    }
+
     private static func commandFailureMessage(_ result: ProcessResult) -> String {
         let message = result.stderr.isEmpty ? result.stdout : result.stderr
         let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedMessage.isEmpty ? "networksetup failed with status \(result.exitCode)" : trimmedMessage
+    }
+
+    private static func coreWLANNetworkNotVisibleMessage(targetSSID: String) -> String {
+        "network \"\(targetSSID)\" is not visible to CoreWLAN"
     }
 
     static func localNetworkNames(fromSystemProfiler output: String) -> [String] {

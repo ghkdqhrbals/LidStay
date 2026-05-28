@@ -112,4 +112,11 @@ final class NetworkRecoveryControllerTests: XCTestCase {
             "networksetup finished, but Wi-Fi did not join \"Min iPhone\""
         )
     }
+
+    func testHotspotNotBroadcastingMessageExplainsIPhoneRequirement() {
+        XCTAssertEqual(
+            NetworkRecoveryConnector.hotspotNotBroadcastingMessage(targetSSID: "Min iPhone"),
+            "hotspot \"Min iPhone\" is not broadcasting as a regular Wi-Fi network. Open Personal Hotspot on iPhone and keep Allow Others to Join enabled."
+        )
+    }
 }
