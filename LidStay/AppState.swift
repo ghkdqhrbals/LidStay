@@ -1105,9 +1105,6 @@ final class AppState: ObservableObject {
     func selectNetworkRecoverySSID(_ ssid: String) {
         let trimmedSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
         networkRecoverySSIDText = trimmedSSID
-        if !trimmedSSID.isEmpty {
-            networkRecoveryEnabled = true
-        }
     }
 
     func refreshNetworkRecoverySSIDCandidatesIfNeeded() {
@@ -1164,7 +1161,6 @@ final class AppState: ObservableObject {
             return
         }
 
-        networkRecoveryEnabled = true
         isNetworkRecoveryTestInProgress = true
         networkRecoveryTestMessage = nil
         networkRecoveryStatus = .connecting
