@@ -205,6 +205,18 @@ struct OptionsView: View {
                 }
 
                 if appState.developerModeEnabled {
+                    optionRow(title: isKorean ? "핫스팟 테스트" : "Hotspot Test") {
+                        HStack(spacing: 10) {
+                            Button(appState.networkRecoveryTestButtonTitle) {
+                                appState.testNetworkRecoveryConnection()
+                            }
+                            .disabled(!appState.canTestNetworkRecoveryConnection)
+                            Text(appState.networkRecoveryTestStatusTitle)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+
                     optionRow(title: isKorean ? "디버그" : "Debug") {
                         debugLogView
                     }
@@ -357,7 +369,7 @@ struct OptionsView: View {
     }
 
     private var optionsWindowHeight: CGFloat {
-        appState.developerModeEnabled ? 760 : 650
+        appState.developerModeEnabled ? 790 : 650
     }
 
     private var debugLogView: some View {

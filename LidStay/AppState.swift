@@ -117,6 +117,8 @@ final class AppState: ObservableObject {
     @Published private(set) var networkRecoverySSIDCandidates: [String] = []
     @Published private(set) var isNetworkRecoverySSIDRefreshInProgress = false
     @Published private(set) var networkRecoverySSIDRefreshError: String?
+    @Published private(set) var isNetworkRecoveryTestInProgress = false
+    @Published private(set) var networkRecoveryTestMessage: String?
     @Published private var menuBarIconAnimationName: String?
     @Published var durationMinutesText: String {
         didSet {
@@ -330,6 +332,31 @@ final class AppState: ObservableObject {
         }
 
         return networkRecoveryStatusTitle
+    }
+
+    var networkRecoveryTestButtonTitle: String {
+        language == .korean ? "연결 테스트" : "Test Connect"
+    }
+
+    var canTestNetworkRecoveryConnection: Bool {
+        !networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !isNetworkRecoveryTestInProgress
+    }
+
+    var networkRecoveryTestStatusTitle: String {
+        if isNetworkRecoveryTestInProgress {
+            return language == .korean ? "테스트 중" : "Testing"
+        }
+
+        if let networkRecoveryTestMessage {
+            return networkRecoveryTestMessage
+        }
+
+        if networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return language == .korean ? "핫스팟 선택 필요" : "Choose hotspot first"
+        }
+
+        return language == .korean ? "즉시 연결 확인" : "Runs immediately"
     }
 
     var statusIndicatorSymbolName: String {
@@ -1042,6 +1069,45 @@ final class AppState: ObservableObject {
             }
 
             self.isNetworkRecoverySSIDRefreshInProgress = false
+        }
+    }
+
+    func testNetworkRecoveryConnection() {
+        let ssid = networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !ssid.isEmpty else {
+            networkRecoveryTestMessage = language == .korean ? "핫스팟 선택 필요" : "Choose hotspot first"
+            networkRecoveryStatus = .waitingForSSID
+            return
+        }
+
+        networkRecoveryEnabled = true
+        isNetworkRecoveryTestInProgress = true
+        networkRecoveryTestMessage = nil
+        networkRecoveryStatus = .connecting
+        appendDebugEvent(title: "Network", detail: "Testing hotspot connection to \"\(ssid)\"", succeeded: true)
+
+        Task { [weak self] in
+            let result = await NetworkRecoveryConnector.connect(toSSID: ssid)
+
+            guard let self else {
+                return
+            }
+
+            self.isNetworkRecoveryTestInProgress = false
+            switch result {
+            case .success:
+                self.networkRecoveryStatus = .connected(ssid)
+                self.networkRecoveryTestMessage = self.language == .korean ? "연결 성공" : "Connected"
+                self.appendDebugEvent(title: "Network", detail: "Hotspot test connected to \"\(ssid)\"", succeeded: true)
+            case .wifiDeviceUnavailable:
+                self.networkRecoveryStatus = .unavailable("Wi-Fi device not found")
+                self.networkRecoveryTestMessage = self.language == .korean ? "Wi-Fi를 찾지 못함" : "Wi-Fi unavailable"
+                self.appendDebugEvent(title: "Network", detail: "Hotspot test failed: Wi-Fi device not found", succeeded: false)
+            case .failed(let message):
+                self.networkRecoveryStatus = .failed(message)
+                self.networkRecoveryTestMessage = self.language == .korean ? "연결 실패" : "Connection failed"
+                self.appendDebugEvent(title: "Network", detail: "Hotspot test failed: \(message)", succeeded: false)
+            }
         }
     }
 
