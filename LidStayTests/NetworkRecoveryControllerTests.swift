@@ -44,6 +44,28 @@ final class NetworkRecoveryControllerTests: XCTestCase {
         ])
     }
 
+    func testBuildsSetAirportNetworkArgumentsWithoutPassword() {
+        XCTAssertEqual(
+            NetworkRecoveryConnector.setAirportNetworkArguments(
+                device: "en0",
+                ssid: "Min iPhone",
+                password: ""
+            ),
+            ["-setairportnetwork", "en0", "Min iPhone"]
+        )
+    }
+
+    func testBuildsSetAirportNetworkArgumentsWithPassword() {
+        XCTAssertEqual(
+            NetworkRecoveryConnector.setAirportNetworkArguments(
+                device: "en0",
+                ssid: "Min iPhone",
+                password: " hotspot-password "
+            ),
+            ["-setairportnetwork", "en0", "Min iPhone", "hotspot-password"]
+        )
+    }
+
     func testConnectionVerificationFailureShowsCurrentNetworkMismatch() {
         XCTAssertEqual(
             NetworkRecoveryConnector.connectionVerificationFailureMessage(

@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import IOKit
+import Security
 import UserNotifications
 
 @MainActor
@@ -83,6 +84,14 @@ final class AppState: ObservableObject {
     @Published var networkRecoverySSIDText: String {
         didSet {
             defaults.set(networkRecoverySSIDText, forKey: DefaultsKey.networkRecoverySSIDText)
+            networkRecoveryPasswordText = Self.keychainPassword(for: networkRecoverySSIDText)
+            refreshNetworkRecovery()
+        }
+    }
+
+    @Published var networkRecoveryPasswordText: String {
+        didSet {
+            Self.setKeychainPassword(networkRecoveryPasswordText, for: networkRecoverySSIDText)
             refreshNetworkRecovery()
         }
     }
@@ -169,7 +178,9 @@ final class AppState: ObservableObject {
         self.autoPauseOnLowBattery = defaults.object(forKey: DefaultsKey.autoPauseOnLowBattery) as? Bool ?? true
         self.startScreenSaverOnClosedLid = defaults.object(forKey: DefaultsKey.startScreenSaverOnClosedLid) as? Bool ?? true
         self.networkRecoveryEnabled = defaults.object(forKey: DefaultsKey.networkRecoveryEnabled) as? Bool ?? false
-        self.networkRecoverySSIDText = defaults.string(forKey: DefaultsKey.networkRecoverySSIDText) ?? ""
+        let savedNetworkRecoverySSID = defaults.string(forKey: DefaultsKey.networkRecoverySSIDText) ?? ""
+        self.networkRecoverySSIDText = savedNetworkRecoverySSID
+        self.networkRecoveryPasswordText = Self.keychainPassword(for: savedNetworkRecoverySSID)
         self.networkRecoveryRetrySecondsText = defaults.string(forKey: DefaultsKey.networkRecoveryRetrySecondsText) ?? "30"
         self.developerModeEnabled = defaults.object(forKey: DefaultsKey.developerModeEnabled) as? Bool ?? false
         self.lowBatteryLimitText = defaults.string(forKey: DefaultsKey.lowBatteryLimitText) ?? "20"
@@ -405,6 +416,18 @@ final class AppState: ObservableObject {
         }
 
         return language == .korean ? "즉시 연결 확인" : "Runs immediately"
+    }
+
+    var networkRecoveryPasswordStatusTitle: String {
+        if networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return language == .korean ? "핫스팟 선택 필요" : "Choose hotspot first"
+        }
+
+        if networkRecoveryPasswordText.isEmpty {
+            return language == .korean ? "iPhone 핫스팟은 암호 필요" : "iPhone hotspot may need password"
+        }
+
+        return language == .korean ? "Keychain 저장됨" : "Saved in Keychain"
     }
 
     var statusIndicatorSymbolName: String {
@@ -1137,7 +1160,10 @@ final class AppState: ObservableObject {
         appendDebugEvent(title: "Network", detail: "Testing hotspot connection to \"\(ssid)\"", succeeded: true)
 
         Task { [weak self] in
-            let result = await NetworkRecoveryConnector.connect(toSSID: ssid)
+            let result = await NetworkRecoveryConnector.connect(
+                toSSID: ssid,
+                password: self?.networkRecoveryPasswordText ?? ""
+            )
 
             guard let self else {
                 return
@@ -1293,6 +1319,7 @@ final class AppState: ObservableObject {
         networkRecoveryController.update(configuration: NetworkRecoveryConfiguration(
             isEnabled: networkRecoveryEnabled,
             hotspotSSID: networkRecoverySSIDText,
+            hotspotPassword: networkRecoveryPasswordText,
             retryDelay: TimeInterval(networkRecoveryRetrySeconds),
             shouldMonitor: assertionState == .active
         ))
@@ -1614,6 +1641,59 @@ final class AppState: ObservableObject {
         "\"\(value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
     }
 
+    private static func keychainPassword(for ssid: String) -> String {
+        let account = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !account.isEmpty else {
+            return ""
+        }
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching([
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainNetworkRecoveryPasswordService,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ] as CFDictionary, &item)
+
+        guard status == errSecSuccess,
+              let data = item as? Data,
+              let password = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+
+        return password
+    }
+
+    private static func setKeychainPassword(_ password: String, for ssid: String) {
+        let account = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !account.isEmpty else {
+            return
+        }
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainNetworkRecoveryPasswordService,
+            kSecAttrAccount as String: account
+        ]
+
+        guard !password.isEmpty else {
+            SecItemDelete(query as CFDictionary)
+            return
+        }
+
+        let data = Data(password.utf8)
+        let updateStatus = SecItemUpdate(query as CFDictionary, [
+            kSecValueData as String: data
+        ] as CFDictionary)
+
+        if updateStatus == errSecItemNotFound {
+            var attributes = query
+            attributes[kSecValueData as String] = data
+            SecItemAdd(attributes as CFDictionary, nil)
+        }
+    }
+
     private func openGitHubIssue(title: String, labels: String, body: String) {
         var components = URLComponents(string: "https://github.com/ghkdqhrbals/LidStay/issues/new")
         components?.queryItems = [
@@ -1754,6 +1834,8 @@ private final class AppNotificationController: NSObject, UNUserNotificationCente
         [.banner, .list, .sound]
     }
 }
+
+private let keychainNetworkRecoveryPasswordService = "com.ghkdqhrbals.LidStay.networkRecoveryPassword"
 
 private enum DefaultsKey {
     static let isSleepPreventionEnabled = "isKeepAwakeEnabled"

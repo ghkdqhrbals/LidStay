@@ -75,59 +75,71 @@ struct OptionsView: View {
                 }
 
                 optionRow(title: isKorean ? "핫스팟" : "Hotspot", topic: .networkRecovery) {
-                    HStack(spacing: 10) {
-                        Toggle("", isOn: $appState.networkRecoveryEnabled)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 10) {
+                            Toggle("", isOn: $appState.networkRecoveryEnabled)
+                                .labelsHidden()
+                            Picker("", selection: networkRecoverySSIDBinding) {
+                                Text(isKorean ? "선택" : "Choose")
+                                    .tag("")
+                                if let selectedSSID = appState.networkRecoverySelectedSSIDFallbackOption {
+                                    Text(selectedSSID).tag(selectedSSID)
+                                }
+                                if !appState.networkRecoveryNearbySSIDOptions.isEmpty {
+                                    Section(isKorean ? "근처 네트워크" : "Nearby") {
+                                        ForEach(appState.networkRecoveryNearbySSIDOptions, id: \.self) { ssid in
+                                            Text(ssid).tag(ssid)
+                                        }
+                                    }
+                                }
+                                if !appState.networkRecoverySavedSSIDOptions.isEmpty {
+                                    Section(isKorean ? "저장된 네트워크" : "Saved") {
+                                        ForEach(appState.networkRecoverySavedSSIDOptions, id: \.self) { ssid in
+                                            Text(ssid).tag(ssid)
+                                        }
+                                    }
+                                }
+                            }
                             .labelsHidden()
-                        Picker("", selection: networkRecoverySSIDBinding) {
-                            Text(isKorean ? "선택" : "Choose")
-                                .tag("")
-                            if let selectedSSID = appState.networkRecoverySelectedSSIDFallbackOption {
-                                Text(selectedSSID).tag(selectedSSID)
+                            .pickerStyle(.menu)
+                            .frame(width: 170)
+                            .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
+                            Button {
+                                appState.refreshNetworkRecoverySSIDCandidates()
+                            } label: {
+                                Image(systemName: appState.isNetworkRecoverySSIDRefreshInProgress ? "hourglass" : "arrow.clockwise")
                             }
-                            if !appState.networkRecoveryNearbySSIDOptions.isEmpty {
-                                Section(isKorean ? "근처 네트워크" : "Nearby") {
-                                    ForEach(appState.networkRecoveryNearbySSIDOptions, id: \.self) { ssid in
-                                        Text(ssid).tag(ssid)
-                                    }
+                            .buttonStyle(.borderless)
+                            .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
+                            .help(isKorean ? "근처 Wi-Fi 목록 다시 확인" : "Refresh nearby Wi-Fi networks")
+                            Picker("", selection: networkRecoveryRetryBinding) {
+                                Text("15s").tag(15)
+                                Text("30s").tag(30)
+                                Text("1m").tag(60)
+                                Text("3m").tag(180)
+                            }
+                            .labelsHidden()
+                            .frame(width: 78)
+                            .disabled(!appState.networkRecoveryEnabled)
+                        }
+
+                        HStack(spacing: 8) {
+                            SecureField(isKorean ? "핫스팟 암호" : "Hotspot password", text: $appState.networkRecoveryPasswordText)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 170)
+                                .disabled(appState.networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            HStack(spacing: 4) {
+                                if appState.isNetworkRecoveryValidationErrorVisible {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundStyle(.red)
+                                        .imageScale(.small)
                                 }
+                                Text(appState.networkRecoveryPickerStatusTitle)
+                                    .foregroundStyle(appState.isNetworkRecoveryValidationErrorVisible ? Color.red : Color.secondary)
+                                    .lineLimit(1)
                             }
-                            if !appState.networkRecoverySavedSSIDOptions.isEmpty {
-                                Section(isKorean ? "저장된 네트워크" : "Saved") {
-                                    ForEach(appState.networkRecoverySavedSSIDOptions, id: \.self) { ssid in
-                                        Text(ssid).tag(ssid)
-                                    }
-                                }
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 170)
-                        .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
-                        Button {
-                            appState.refreshNetworkRecoverySSIDCandidates()
-                        } label: {
-                            Image(systemName: appState.isNetworkRecoverySSIDRefreshInProgress ? "hourglass" : "arrow.clockwise")
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
-                        .help(isKorean ? "근처 Wi-Fi 목록 다시 확인" : "Refresh nearby Wi-Fi networks")
-                        Picker("", selection: networkRecoveryRetryBinding) {
-                            Text("15s").tag(15)
-                            Text("30s").tag(30)
-                            Text("1m").tag(60)
-                            Text("3m").tag(180)
-                        }
-                        .labelsHidden()
-                        .frame(width: 78)
-                        .disabled(!appState.networkRecoveryEnabled)
-                        HStack(spacing: 4) {
-                            if appState.isNetworkRecoveryValidationErrorVisible {
-                                Image(systemName: "exclamationmark.circle.fill")
-                                    .foregroundStyle(.red)
-                                    .imageScale(.small)
-                            }
-                            Text(appState.networkRecoveryPickerStatusTitle)
-                                .foregroundStyle(appState.isNetworkRecoveryValidationErrorVisible ? Color.red : Color.secondary)
+                            Text(appState.networkRecoveryPasswordStatusTitle)
+                                .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
                     }

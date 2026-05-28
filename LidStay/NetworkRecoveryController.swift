@@ -5,6 +5,7 @@ import Network
 struct NetworkRecoveryConfiguration: Equatable {
     var isEnabled: Bool
     var hotspotSSID: String
+    var hotspotPassword: String
     var retryDelay: TimeInterval
     var shouldMonitor: Bool
 }
@@ -37,6 +38,7 @@ final class NetworkRecoveryController {
     private var configuration = NetworkRecoveryConfiguration(
         isEnabled: false,
         hotspotSSID: "",
+        hotspotPassword: "",
         retryDelay: 30,
         shouldMonitor: false
     )
@@ -171,8 +173,12 @@ final class NetworkRecoveryController {
         onEvent?(NetworkRecoveryEvent(detail: "Connecting to hotspot \"\(ssid)\"", succeeded: true))
 
         connectionTask?.cancel()
+        let hotspotPassword = configuration.hotspotPassword
         connectionTask = Task { [weak self] in
-            let result = await NetworkRecoveryConnector.connect(toSSID: ssid)
+            let result = await NetworkRecoveryConnector.connect(
+                toSSID: ssid,
+                password: hotspotPassword
+            )
             self?.handleConnectionResult(result, ssid: ssid)
         }
     }
@@ -278,7 +284,7 @@ enum NetworkRecoveryConnector {
         }.value
     }
 
-    static func connect(toSSID ssid: String) async -> NetworkRecoveryAttemptResult {
+    static func connect(toSSID ssid: String, password: String = "") async -> NetworkRecoveryAttemptResult {
         await Task.detached(priority: .utility) {
             guard case .success(let device) = wifiDevice() else {
                 return .wifiDeviceUnavailable
@@ -286,15 +292,24 @@ enum NetworkRecoveryConnector {
 
             let result = runProcess(
                 executablePath: "/usr/sbin/networksetup",
-                arguments: ["-setairportnetwork", device, ssid]
+                arguments: setAirportNetworkArguments(device: device, ssid: ssid, password: password)
             )
 
-            if result.exitCode == 0 {
+            if result.exitCode == 0, !commandReportsJoinFailure(result) {
                 return await verifiedConnectionResult(device: device, targetSSID: ssid)
             }
 
             return .failed(commandFailureMessage(result))
         }.value
+    }
+
+    static func setAirportNetworkArguments(device: String, ssid: String, password: String) -> [String] {
+        let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        var arguments = ["-setairportnetwork", device, ssid]
+        if !trimmedPassword.isEmpty {
+            arguments.append(trimmedPassword)
+        }
+        return arguments
     }
 
     static func connectionVerificationFailureMessage(targetSSID: String, currentSSID: String?) -> String {
@@ -450,6 +465,13 @@ enum NetworkRecoveryConnector {
         let message = result.stderr.isEmpty ? result.stdout : result.stderr
         let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedMessage.isEmpty ? "networksetup failed with status \(result.exitCode)" : trimmedMessage
+    }
+
+    private static func commandReportsJoinFailure(_ result: ProcessResult) -> Bool {
+        let message = "\(result.stdout)\n\(result.stderr)"
+        return message.localizedCaseInsensitiveContains("failed to join network")
+            || message.localizedCaseInsensitiveContains("could not be joined")
+            || message.localizedCaseInsensitiveContains("error:")
     }
 
     private static func runProcess(executablePath: String, arguments: [String]) -> ProcessResult {
