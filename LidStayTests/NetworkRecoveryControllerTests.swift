@@ -66,6 +66,13 @@ final class NetworkRecoveryControllerTests: XCTestCase {
         )
     }
 
+    func testBuildsSetAirportPowerOnArguments() {
+        XCTAssertEqual(
+            NetworkRecoveryConnector.setAirportPowerArguments(device: "en0", isOn: true),
+            ["-setairportpower", "en0", "on"]
+        )
+    }
+
     func testParsesLocalNetworkNamesFromSystemProfiler() {
         let output = """
         Wi-Fi:

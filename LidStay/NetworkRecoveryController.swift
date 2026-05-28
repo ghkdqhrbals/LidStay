@@ -291,15 +291,14 @@ enum NetworkRecoveryConnector {
             }
 
             let targetSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
-            let coreWLANResult = connectUsingCoreWLAN(toSSID: targetSSID, password: password)
-            if coreWLANResult == .success {
-                return await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "CoreWLAN")
+            let powerResult = ensureWiFiPowerOn(device: device)
+            if case .failed(let message) = powerResult {
+                return .failed(message)
             }
 
-            if case .failed(let coreWLANMessage) = coreWLANResult,
-               coreWLANMessage == coreWLANNetworkNotVisibleMessage(targetSSID: targetSSID),
-               !isNetworkVisibleToSystem(targetSSID) {
-                return .failed(hotspotNotBroadcastingMessage(targetSSID: targetSSID))
+            let coreWLANResult = await connectUsingCoreWLAN(toSSID: targetSSID, password: password)
+            if coreWLANResult == .success {
+                return await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "CoreWLAN")
             }
 
             let networkSetupResult = runProcess(
@@ -313,6 +312,10 @@ enum NetworkRecoveryConnector {
 
             let networkSetupMessage = commandFailureMessage(networkSetupResult)
             if case .failed(let coreWLANMessage) = coreWLANResult {
+                if coreWLANMessage == coreWLANNetworkNotVisibleMessage(targetSSID: targetSSID),
+                   !isNetworkVisibleToSystem(targetSSID) {
+                    return .failed("\(hotspotNotBroadcastingMessage(targetSSID: targetSSID)); networksetup failed: \(networkSetupMessage)")
+                }
                 return .failed("CoreWLAN failed: \(coreWLANMessage); networksetup failed: \(networkSetupMessage)")
             }
 
@@ -327,6 +330,10 @@ enum NetworkRecoveryConnector {
             arguments.append(trimmedPassword)
         }
         return arguments
+    }
+
+    static func setAirportPowerArguments(device: String, isOn: Bool) -> [String] {
+        ["-setairportpower", device, isOn ? "on" : "off"]
     }
 
     static func connectionVerificationFailureMessage(
@@ -506,7 +513,7 @@ enum NetworkRecoveryConnector {
         return currentNetworkName(from: result.stdout)
     }
 
-    private static func connectUsingCoreWLAN(toSSID ssid: String, password: String) -> NetworkRecoveryAttemptResult {
+    private static func connectUsingCoreWLAN(toSSID ssid: String, password: String) async -> NetworkRecoveryAttemptResult {
         guard let interface = CWWiFiClient.shared().interface() else {
             return .wifiDeviceUnavailable
         }
@@ -517,20 +524,46 @@ enum NetworkRecoveryConnector {
         }
 
         do {
-            let networks = try interface.scanForNetworks(withSSID: nil)
-            guard let network = networks
-                .filter({ $0.ssid == targetSSID })
-                .sorted(by: { $0.rssiValue > $1.rssiValue })
-                .first else {
+            var selectedNetwork: CWNetwork?
+            for attempt in 0..<5 {
+                selectedNetwork = try visibleNetwork(toSSID: targetSSID, interface: interface)
+                if selectedNetwork != nil {
+                    break
+                }
+
+                if attempt < 4 {
+                    try await Task.sleep(nanoseconds: 1_000_000_000)
+                }
+            }
+
+            guard let selectedNetwork else {
                 return .failed(coreWLANNetworkNotVisibleMessage(targetSSID: targetSSID))
             }
 
             let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
-            try interface.associate(to: network, password: trimmedPassword.isEmpty ? nil : trimmedPassword)
+            try interface.associate(to: selectedNetwork, password: trimmedPassword.isEmpty ? nil : trimmedPassword)
             return .success
         } catch {
             return .failed(error.localizedDescription)
         }
+    }
+
+    private static func visibleNetwork(toSSID targetSSID: String, interface: CWInterface) throws -> CWNetwork? {
+        let targetSSIDData = targetSSID.data(using: .utf8)
+        let targetedNetworks = try interface.scanForNetworks(withSSID: targetSSIDData)
+        if let targetedNetwork = strongestNetwork(named: targetSSID, in: targetedNetworks) {
+            return targetedNetwork
+        }
+
+        let allNetworks = try interface.scanForNetworks(withSSID: nil)
+        return strongestNetwork(named: targetSSID, in: allNetworks)
+    }
+
+    private static func strongestNetwork(named targetSSID: String, in networks: Set<CWNetwork>) -> CWNetwork? {
+        networks
+            .filter { $0.ssid == targetSSID }
+            .sorted { $0.rssiValue > $1.rssiValue }
+            .first
     }
 
     private static func systemProfilerLocalNetworkNames() -> [String] {
@@ -548,6 +581,24 @@ enum NetworkRecoveryConnector {
 
     private static func isNetworkVisibleToSystem(_ ssid: String) -> Bool {
         nearbyNetworkNames().names.contains(ssid)
+    }
+
+    private static func ensureWiFiPowerOn(device: String) -> NetworkRecoveryAttemptResult {
+        if CWWiFiClient.shared().interface()?.powerOn() == true {
+            return .success
+        }
+
+        let result = runProcess(
+            executablePath: "/usr/sbin/networksetup",
+            arguments: setAirportPowerArguments(device: device, isOn: true)
+        )
+
+        guard result.exitCode == 0 else {
+            return .failed(commandFailureMessage(result))
+        }
+
+        Thread.sleep(forTimeInterval: 2)
+        return .success
     }
 
     private static func commandFailureMessage(_ result: ProcessResult) -> String {
