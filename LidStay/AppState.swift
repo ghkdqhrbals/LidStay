@@ -70,6 +70,27 @@ final class AppState: ObservableObject {
         }
     }
 
+    @Published var networkRecoveryEnabled: Bool {
+        didSet {
+            defaults.set(networkRecoveryEnabled, forKey: DefaultsKey.networkRecoveryEnabled)
+            refreshNetworkRecovery()
+        }
+    }
+
+    @Published var networkRecoverySSIDText: String {
+        didSet {
+            defaults.set(networkRecoverySSIDText, forKey: DefaultsKey.networkRecoverySSIDText)
+            refreshNetworkRecovery()
+        }
+    }
+
+    @Published var networkRecoveryRetrySecondsText: String {
+        didSet {
+            defaults.set(networkRecoveryRetrySecondsText, forKey: DefaultsKey.networkRecoveryRetrySecondsText)
+            refreshNetworkRecovery()
+        }
+    }
+
     @Published var developerModeEnabled: Bool {
         didSet {
             defaults.set(developerModeEnabled, forKey: DefaultsKey.developerModeEnabled)
@@ -89,6 +110,7 @@ final class AppState: ObservableObject {
     @Published private(set) var sessionEndDate: Date?
     @Published private(set) var now = Date()
     @Published private(set) var debugEvents: [DebugEvent] = []
+    @Published private(set) var networkRecoveryStatus: NetworkRecoveryStatus = .off
     @Published private var menuBarIconAnimationName: String?
     @Published var durationMinutesText: String {
         didSet {
@@ -114,6 +136,7 @@ final class AppState: ObservableObject {
     private let defaults: UserDefaults
     private let assertionController: PowerAssertionController
     private let powerSourceMonitor: PowerSourceMonitor
+    private let networkRecoveryController: NetworkRecoveryController
     private let notificationController = AppNotificationController.shared
     private var sessionTimer: Timer?
     private var iconAnimationTask: Task<Void, Never>?
@@ -123,17 +146,22 @@ final class AppState: ObservableObject {
     init(
         defaults: UserDefaults = .standard,
         assertionController: PowerAssertionController = PowerAssertionController(),
-        powerSourceMonitor: PowerSourceMonitor = PowerSourceMonitor()
+        powerSourceMonitor: PowerSourceMonitor = PowerSourceMonitor(),
+        networkRecoveryController: NetworkRecoveryController? = nil
     ) {
         self.defaults = defaults
         self.assertionController = assertionController
         self.powerSourceMonitor = powerSourceMonitor
+        self.networkRecoveryController = networkRecoveryController ?? NetworkRecoveryController()
         self.isSleepPreventionEnabled = defaults.bool(forKey: DefaultsKey.isSleepPreventionEnabled)
         self.allowOnBattery = defaults.bool(forKey: DefaultsKey.allowOnBattery)
         self.language = AppLanguage(rawValue: defaults.string(forKey: DefaultsKey.language) ?? "") ?? .english
         self.launchAtLoginEnabled = defaults.bool(forKey: DefaultsKey.launchAtLoginEnabled)
         self.autoPauseOnLowBattery = defaults.object(forKey: DefaultsKey.autoPauseOnLowBattery) as? Bool ?? true
         self.startScreenSaverOnClosedLid = defaults.object(forKey: DefaultsKey.startScreenSaverOnClosedLid) as? Bool ?? true
+        self.networkRecoveryEnabled = defaults.object(forKey: DefaultsKey.networkRecoveryEnabled) as? Bool ?? false
+        self.networkRecoverySSIDText = defaults.string(forKey: DefaultsKey.networkRecoverySSIDText) ?? ""
+        self.networkRecoveryRetrySecondsText = defaults.string(forKey: DefaultsKey.networkRecoveryRetrySecondsText) ?? "30"
         self.developerModeEnabled = defaults.object(forKey: DefaultsKey.developerModeEnabled) as? Bool ?? false
         self.lowBatteryLimitText = defaults.string(forKey: DefaultsKey.lowBatteryLimitText) ?? "20"
         self.durationMinutesText = defaults.string(forKey: DefaultsKey.durationMinutesText) ?? "60"
@@ -157,6 +185,13 @@ final class AppState: ObservableObject {
         }
         notificationController.prepare()
 
+        self.networkRecoveryController.onStatusChange = { [weak self] status in
+            self?.networkRecoveryStatus = status
+        }
+        self.networkRecoveryController.onEvent = { [weak self] event in
+            self?.appendDebugEvent(title: "Network", detail: event.detail, succeeded: event.succeeded)
+        }
+
         powerSourceMonitor.onChange = { [weak self] snapshot in
             Task { @MainActor in
                 self?.powerSourceState = snapshot.state
@@ -170,6 +205,7 @@ final class AppState: ObservableObject {
             setLaunchAtLogin(true)
         }
         refreshAssertion()
+        refreshNetworkRecovery()
         startCLICommandObserver()
         writeCLIStatus()
     }
@@ -236,6 +272,34 @@ final class AppState: ObservableObject {
             return "pause.circle"
         case .failed:
             return "exclamationmark.triangle"
+        }
+    }
+
+    var networkRecoveryRetrySeconds: Int {
+        let parsed = Int(networkRecoveryRetrySecondsText) ?? 30
+        return min(600, max(5, parsed))
+    }
+
+    var networkRecoveryStatusTitle: String {
+        switch networkRecoveryStatus {
+        case .off:
+            return language == .korean ? "꺼짐" : "Off"
+        case .waitingForSSID:
+            return language == .korean ? "핫스팟 이름 필요" : "Enter hotspot name"
+        case .ready:
+            return language == .korean ? "켜두는 중에 감시" : "Ready while keeping on"
+        case .monitoring:
+            return language == .korean ? "네트워크 감시 중" : "Watching network"
+        case .waitingToRetry(let seconds):
+            return language == .korean ? "\(seconds)초 후 연결 시도" : "Retry in \(seconds)s"
+        case .connecting:
+            return language == .korean ? "핫스팟 연결 중" : "Connecting"
+        case .connected(let ssid):
+            return language == .korean ? "\(ssid)에 연결됨" : "Connected to \(ssid)"
+        case .failed:
+            return language == .korean ? "연결 실패, 재시도 중" : "Failed, retrying"
+        case .unavailable:
+            return language == .korean ? "Wi-Fi를 찾지 못함" : "Wi-Fi unavailable"
         }
     }
 
@@ -667,6 +731,7 @@ final class AppState: ObservableObject {
         }
         assertionController.release()
         powerSourceMonitor.stop()
+        networkRecoveryController.stop()
         if let cliCommandObserver {
             DistributedNotificationCenter.default().removeObserver(cliCommandObserver)
         }
@@ -720,6 +785,7 @@ final class AppState: ObservableObject {
         assertionController.release()
         assertionState = .stopped
         writeCLIStatus()
+        refreshNetworkRecovery()
     }
 
     func showAbout() {
@@ -894,6 +960,10 @@ final class AppState: ObservableObject {
         autoPauseOnLowBattery = true
     }
 
+    func selectNetworkRecoveryRetrySeconds(_ seconds: Int) {
+        networkRecoveryRetrySecondsText = String(min(600, max(5, seconds)))
+    }
+
     func showLowBatteryLimitPrompt() {
         let alert = NSAlert()
         alert.messageText = lowBatteryPromptTitle
@@ -980,6 +1050,7 @@ final class AppState: ObservableObject {
             assertionController.release()
             updateAssertionState(.stopped, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             writeCLIStatus()
+            refreshNetworkRecovery()
             return
         }
 
@@ -992,6 +1063,7 @@ final class AppState: ObservableObject {
                     assertionController.release()
                     updateAssertionState(.batteryBlocked, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
                     writeCLIStatus()
+                    refreshNetworkRecovery()
                     return
                 }
                 updateAssertionState(assertionController.acquire(), previousState: previousState, forceClamshellReapply: forceClamshellReapply)
@@ -1009,6 +1081,16 @@ final class AppState: ObservableObject {
         }
 
         writeCLIStatus()
+        refreshNetworkRecovery()
+    }
+
+    private func refreshNetworkRecovery() {
+        networkRecoveryController.update(configuration: NetworkRecoveryConfiguration(
+            isEnabled: networkRecoveryEnabled,
+            hotspotSSID: networkRecoverySSIDText,
+            retryDelay: TimeInterval(networkRecoveryRetrySeconds),
+            shouldMonitor: assertionState == .active
+        ))
     }
 
     private func updateAssertionState(
@@ -1478,6 +1560,9 @@ private enum DefaultsKey {
     static let autoPauseOnLowBattery = "autoPauseOnLowBattery"
     static let lowBatteryLimitText = "lowBatteryLimitText"
     static let startScreenSaverOnClosedLid = "startScreenSaverOnClosedLid"
+    static let networkRecoveryEnabled = "networkRecoveryEnabled"
+    static let networkRecoverySSIDText = "networkRecoverySSIDText"
+    static let networkRecoveryRetrySecondsText = "networkRecoveryRetrySecondsText"
     static let developerModeEnabled = "developerModeEnabled"
 }
 

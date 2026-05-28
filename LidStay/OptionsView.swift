@@ -74,6 +74,29 @@ struct OptionsView: View {
                     }
                 }
 
+                optionRow(title: isKorean ? "핫스팟" : "Hotspot", topic: .networkRecovery) {
+                    HStack(spacing: 10) {
+                        Toggle("", isOn: $appState.networkRecoveryEnabled)
+                            .labelsHidden()
+                        TextField(isKorean ? "핫스팟 이름" : "Hotspot name", text: $appState.networkRecoverySSIDText)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 150)
+                            .disabled(!appState.networkRecoveryEnabled)
+                        Picker("", selection: networkRecoveryRetryBinding) {
+                            Text("15s").tag(15)
+                            Text("30s").tag(30)
+                            Text("1m").tag(60)
+                            Text("3m").tag(180)
+                        }
+                        .labelsHidden()
+                        .frame(width: 78)
+                        .disabled(!appState.networkRecoveryEnabled)
+                        Text(appState.networkRecoveryStatusTitle)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
                 Divider()
 
                 optionRow(title: isKorean ? "자동 실행" : "Launch") {
@@ -293,8 +316,19 @@ struct OptionsView: View {
         )
     }
 
+    private var networkRecoveryRetryBinding: Binding<Int> {
+        Binding(
+            get: {
+                appState.networkRecoveryRetrySeconds
+            },
+            set: { seconds in
+                appState.selectNetworkRecoveryRetrySeconds(seconds)
+            }
+        )
+    }
+
     private var optionsWindowHeight: CGFloat {
-        appState.developerModeEnabled ? 720 : 610
+        appState.developerModeEnabled ? 760 : 650
     }
 
     private var debugLogView: some View {
@@ -356,6 +390,7 @@ private enum HelpTopic: Identifiable {
     case notifications
     case updates
     case automaticUpdates
+    case networkRecovery
     case language
     case about
     case uninstall
@@ -378,6 +413,8 @@ private enum HelpTopic: Identifiable {
             return isKorean ? "업데이트" : "Updates"
         case .automaticUpdates:
             return isKorean ? "자동 업데이트" : "Automatic updates"
+        case .networkRecovery:
+            return isKorean ? "핫스팟 자동 연결" : "Auto-connect hotspot"
         case .language:
             return isKorean ? "언어" : "Language"
         case .about:
@@ -417,6 +454,10 @@ private enum HelpTopic: Identifiable {
             return isKorean
                 ? "켜두면 새 버전을 자동으로 확인하고 가능한 경우 자동으로 설치합니다. 권한이 필요하면 macOS가 확인을 요청할 수 있습니다."
                 : "When enabled, LidStay checks for updates and installs them automatically when possible. macOS may still ask when authorization is required."
+        case .networkRecovery:
+            return isKorean
+                ? "Mac 켜두는 중 네트워크가 끊기면, 이전에 연결해 둔 핫스팟 이름으로 자동 연결을 시도합니다."
+                : "When the network drops while LidStay is keeping your Mac on, it tries to join the hotspot name you entered. Join it once in macOS first."
         case .language:
             return isKorean
                 ? "메뉴와 옵션 창의 표시 언어를 바꿉니다."

@@ -14,6 +14,7 @@
 		8A1C3C802C6A4A11008B1010 /* PowerAssertionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */; };
 		8A2D10052C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */; };
 		8A1C3C812C6A4A11008B1010 /* PowerSourceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */; };
+		8A3B20022C8A0001008B1010 /* NetworkRecoveryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3B20012C8A0001008B1010 /* NetworkRecoveryController.swift */; };
 		8A1C3C912C6A4A12008B1010 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C8E2C6A4A12008B1010 /* AboutView.swift */; };
 		8A1C3C922C6A4A12008B1010 /* AboutWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C8F2C6A4A12008B1010 /* AboutWindowController.swift */; };
 		8A1C3C932C6A4A12008B1010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8A1C3C902C6A4A12008B1010 /* Assets.xcassets */; };
@@ -37,6 +38,7 @@
 		8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerAssertionController.swift; sourceTree = "<group>"; };
 		8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClosedLidBrightnessController.swift; sourceTree = "<group>"; };
 		8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerSourceMonitor.swift; sourceTree = "<group>"; };
+		8A3B20012C8A0001008B1010 /* NetworkRecoveryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRecoveryController.swift; sourceTree = "<group>"; };
 		8A1C3C8E2C6A4A12008B1010 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		8A1C3C8F2C6A4A12008B1010 /* AboutWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindowController.swift; sourceTree = "<group>"; };
 		8A1C3C902C6A4A12008B1010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -102,6 +104,7 @@
 				8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */,
 				8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */,
 				8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */,
+				8A3B20012C8A0001008B1010 /* NetworkRecoveryController.swift */,
 				8A1C3CA22C6A4A14008B1010 /* CLICommand.swift */,
 				8A1C3CA42C6A4A15008B1010 /* CLIInstaller.swift */,
 				8A1C3CA92C6A4A16008B1010 /* UpdateController.swift */,
@@ -244,6 +247,7 @@
 				8A1C3C802C6A4A11008B1010 /* PowerAssertionController.swift in Sources */,
 				8A2D10052C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */,
 				8A1C3C812C6A4A11008B1010 /* PowerSourceMonitor.swift in Sources */,
+				8A3B20022C8A0001008B1010 /* NetworkRecoveryController.swift in Sources */,
 				8A1C3C912C6A4A12008B1010 /* AboutView.swift in Sources */,
 				8A1C3C922C6A4A12008B1010 /* AboutWindowController.swift in Sources */,
 				8A1C3CA32C6A4A14008B1010 /* CLICommand.swift in Sources */,
