@@ -50,16 +50,19 @@ final class NetworkRecoveryController {
     private var status: NetworkRecoveryStatus = .off
     private var retryTask: Task<Void, Never>?
     private var connectionTask: Task<Void, Never>?
+    private var pendingRetrySSID: String?
+    private var pendingRetryDelay: Int?
     private var lastPathSummary: String?
-    private var lastAvailabilityWarning: String?
+    private var lastRecoverySummary: String?
 
     func update(configuration newConfiguration: NetworkRecoveryConfiguration) {
-        guard newConfiguration != configuration else {
+        let previousConfiguration = configuration
+        guard newConfiguration != previousConfiguration else {
             return
         }
 
         configuration = newConfiguration
-        evaluateCurrentState()
+        reconcileConfigurationChange(from: previousConfiguration)
     }
 
     func stop() {
@@ -68,10 +71,11 @@ final class NetworkRecoveryController {
         monitor = nil
         lastPath = nil
         lastPathSummary = nil
+        lastRecoverySummary = nil
         setStatus(.off)
     }
 
-    private func evaluateCurrentState() {
+    private func reconcileConfigurationChange(from previousConfiguration: NetworkRecoveryConfiguration) {
         guard configuration.isEnabled else {
             stop()
             return
@@ -89,6 +93,10 @@ final class NetworkRecoveryController {
             cancelPendingWork()
             setStatus(.ready)
             return
+        }
+
+        if hasConnectionCriticalChange(from: previousConfiguration) {
+            cancelPendingWork()
         }
 
         guard let lastPath else {
@@ -135,40 +143,40 @@ final class NetworkRecoveryController {
             return
         }
 
-        if isPathCurrentlyUsable(path) {
+        switch currentHealth(for: path) {
+        case .available:
             cancelPendingWork()
             let wasMonitoring = status == .monitoring
             setStatus(.monitoring)
             if !wasMonitoring {
                 onEvent?(NetworkRecoveryEvent(detail: "Network is available; hotspot recovery is standing by", succeeded: true))
             }
-            return
-        }
-
-        if isAlreadyConnectedToConfiguredHotspot() {
+        case .connectedToTarget(let ssid):
             cancelPendingWork()
-            let ssid = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
             setStatus(.connected(ssid))
-            return
+            logRecoverySummaryIfNeeded("Already connected to hotspot \"\(ssid)\"; no recovery action needed", succeeded: true)
+        case .needsRecovery:
+            scheduleConnectionAttempt()
         }
-
-        scheduleConnectionAttempt()
     }
 
     private func scheduleConnectionAttempt() {
-        switch status {
-        case .waitingToRetry, .connecting:
+        guard status != .connecting else {
             return
-        case .off, .waitingForSSID, .ready, .monitoring, .connected, .failed, .unavailable:
-            break
         }
 
         let ssid = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
         let delay = max(1, Int(configuration.retryDelay.rounded()))
+        if pendingRetrySSID == ssid, pendingRetryDelay == delay, retryTask != nil {
+            return
+        }
+
         setStatus(.waitingToRetry(delay))
         onEvent?(NetworkRecoveryEvent(detail: "Network unavailable; will try hotspot \"\(ssid)\" in \(delay)s", succeeded: true))
 
         retryTask?.cancel()
+        pendingRetrySSID = ssid
+        pendingRetryDelay = delay
         retryTask = Task { [weak self] in
             do {
                 try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
@@ -176,38 +184,58 @@ final class NetworkRecoveryController {
                 return
             }
 
-            self?.connectToHotspotIfNeeded(ssid: ssid)
+            await MainActor.run {
+                self?.connectToHotspotIfNeeded(expectedSSID: ssid)
+            }
         }
     }
 
-    private func connectToHotspotIfNeeded(ssid: String) {
+    private func connectToHotspotIfNeeded(expectedSSID: String) {
+        retryTask = nil
+        pendingRetrySSID = nil
+        pendingRetryDelay = nil
+
         guard configuration.isEnabled, configuration.shouldMonitor else {
             return
         }
 
-        if let lastPath, isPathCurrentlyUsable(lastPath) {
+        let configuredSSID = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard configuredSSID == expectedSSID else {
+            onEvent?(NetworkRecoveryEvent(detail: "Skip stale hotspot retry for \"\(expectedSSID)\"", succeeded: true))
+            return
+        }
+
+        guard let lastPath else {
+            setStatus(.monitoring)
+            return
+        }
+
+        switch currentHealth(for: lastPath) {
+        case .available:
             setStatus(.monitoring)
             onEvent?(NetworkRecoveryEvent(detail: "Skip hotspot connection because network recovered before retry", succeeded: true))
             return
-        }
-
-        if isAlreadyConnectedToConfiguredHotspot() {
+        case .connectedToTarget(let ssid):
             setStatus(.connected(ssid))
-            onEvent?(NetworkRecoveryEvent(detail: "Already connected to hotspot \"\(ssid)\"; no recovery action needed", succeeded: true))
+            onEvent?(NetworkRecoveryEvent(detail: "Skip hotspot connection because \"\(ssid)\" is already connected", succeeded: true))
             return
+        case .needsRecovery:
+            break
         }
 
         setStatus(.connecting)
-        onEvent?(NetworkRecoveryEvent(detail: "Connecting to hotspot \"\(ssid)\"", succeeded: true))
+        onEvent?(NetworkRecoveryEvent(detail: "Connecting to hotspot \"\(configuredSSID)\"", succeeded: true))
 
         connectionTask?.cancel()
         let hotspotPassword = configuration.hotspotPassword
         connectionTask = Task { [weak self] in
             let report = await NetworkRecoveryConnector.connectWithDiagnostics(
-                toSSID: ssid,
+                toSSID: configuredSSID,
                 password: hotspotPassword
             )
-            self?.handleConnectionReport(report, ssid: ssid)
+            await MainActor.run {
+                self?.handleConnectionReport(report, ssid: configuredSSID)
+            }
         }
     }
 
@@ -229,15 +257,21 @@ final class NetworkRecoveryController {
         case .failed(let message):
             setStatus(.failed(message))
             onEvent?(NetworkRecoveryEvent(detail: "Hotspot connection failed: \(message)", succeeded: false))
-            if lastPath?.status != .satisfied {
+            if let lastPath, currentHealth(for: lastPath) == .needsRecovery {
                 scheduleConnectionAttempt()
             }
         }
     }
 
-    private func cancelPendingWork() {
+    private func cancelPendingRetry() {
         retryTask?.cancel()
         retryTask = nil
+        pendingRetrySSID = nil
+        pendingRetryDelay = nil
+    }
+
+    private func cancelPendingWork() {
+        cancelPendingRetry()
         connectionTask?.cancel()
         connectionTask = nil
     }
@@ -261,43 +295,36 @@ final class NetworkRecoveryController {
         onEvent?(NetworkRecoveryEvent(detail: summary, succeeded: path.status == .satisfied))
     }
 
-    private func isPathCurrentlyUsable(_ path: NWPath) -> Bool {
-        let requiresWiFiAssociation = Self.requiresWiFiAssociation(path)
-        let currentSSID = requiresWiFiAssociation ? NetworkRecoveryConnector.currentAssociatedWiFiSSID() : nil
-        let isUsable = NetworkRecoveryConnector.isUsableNetworkPath(
-            statusSatisfied: path.status == .satisfied,
-            requiresWiFiAssociation: requiresWiFiAssociation,
-            currentWiFiSSID: currentSSID
-        )
+    private func currentHealth(for path: NWPath) -> NetworkRecoveryHealth {
+        let targetSSID = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentSSID = NetworkRecoveryConnector.currentAssociatedWiFiSSID()
 
-        if isUsable {
-            lastAvailabilityWarning = nil
-            return true
+        if NetworkRecoveryConnector.shouldSkipHotspotJoin(currentSSID: currentSSID, targetSSID: targetSSID) {
+            return .connectedToTarget(targetSSID)
         }
 
-        if path.status == .satisfied, requiresWiFiAssociation {
-            let warning = "Network path is satisfied, but Wi-Fi is not associated; keeping hotspot retry active"
-            if lastAvailabilityWarning != warning {
-                lastAvailabilityWarning = warning
-                onEvent?(NetworkRecoveryEvent(detail: warning, succeeded: false))
-            }
+        if path.status == .satisfied {
+            return .available
         }
 
-        return false
+        return .needsRecovery
     }
 
-    private static func requiresWiFiAssociation(_ path: NWPath) -> Bool {
-        let hasNonWiFiInterface = path.usesInterfaceType(.wiredEthernet)
-            || path.usesInterfaceType(.cellular)
-            || path.usesInterfaceType(.other)
-        return path.usesInterfaceType(.wifi) && !hasNonWiFiInterface
+    private func hasConnectionCriticalChange(from previousConfiguration: NetworkRecoveryConfiguration) -> Bool {
+        previousConfiguration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+            != configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+            || previousConfiguration.hotspotPassword != configuration.hotspotPassword
+            || previousConfiguration.isEnabled != configuration.isEnabled
+            || previousConfiguration.shouldMonitor != configuration.shouldMonitor
     }
 
-    private func isAlreadyConnectedToConfiguredHotspot() -> Bool {
-        NetworkRecoveryConnector.shouldSkipHotspotJoin(
-            currentSSID: NetworkRecoveryConnector.currentAssociatedWiFiSSID(),
-            targetSSID: configuration.hotspotSSID
-        )
+    private func logRecoverySummaryIfNeeded(_ summary: String, succeeded: Bool) {
+        guard summary != lastRecoverySummary else {
+            return
+        }
+
+        lastRecoverySummary = summary
+        onEvent?(NetworkRecoveryEvent(detail: summary, succeeded: succeeded))
     }
 
     private static func pathSummary(_ path: NWPath) -> String {
@@ -314,6 +341,12 @@ final class NetworkRecoveryController {
 
         return "Network path status=\(path.status), reason=\(path.unsatisfiedReason), active=\(activeText), available=\(availableText.isEmpty ? "none" : availableText)"
     }
+}
+
+private enum NetworkRecoveryHealth: Equatable {
+    case available
+    case connectedToTarget(String)
+    case needsRecovery
 }
 
 enum NetworkRecoveryAttemptResult: Equatable {
@@ -491,19 +524,15 @@ enum NetworkRecoveryConnector {
         requiresWiFiAssociation: Bool,
         currentWiFiSSID: String?
     ) -> Bool {
-        guard statusSatisfied else {
-            return false
-        }
+        statusSatisfied
+    }
 
-        guard requiresWiFiAssociation else {
-            return true
-        }
-
-        guard let currentWiFiSSID else {
-            return false
-        }
-
-        return !currentWiFiSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    static func shouldAttemptHotspotRecovery(
+        isNetworkReachable: Bool,
+        currentSSID: String?,
+        targetSSID: String
+    ) -> Bool {
+        !isNetworkReachable && !shouldSkipHotspotJoin(currentSSID: currentSSID, targetSSID: targetSSID)
     }
 
     static func shouldSkipHotspotJoin(currentSSID: String?, targetSSID: String) -> Bool {

@@ -90,12 +90,50 @@ final class NetworkRecoveryControllerTests: XCTestCase {
         )
     }
 
-    func testSatisfiedWiFiPathWithoutAssociationIsNotUsable() {
-        XCTAssertFalse(
+    func testSatisfiedPathIsUsableEvenWhenSSIDLookupIsUnavailable() {
+        XCTAssertTrue(
             NetworkRecoveryConnector.isUsableNetworkPath(
                 statusSatisfied: true,
                 requiresWiFiAssociation: true,
                 currentWiFiSSID: nil
+            )
+        )
+    }
+
+    func testAttemptsHotspotRecoveryOnlyWhenNetworkIsDownAndTargetIsNotConnected() {
+        XCTAssertTrue(
+            NetworkRecoveryConnector.shouldAttemptHotspotRecovery(
+                isNetworkReachable: false,
+                currentSSID: nil,
+                targetSSID: "Min iPhone"
+            )
+        )
+
+        XCTAssertTrue(
+            NetworkRecoveryConnector.shouldAttemptHotspotRecovery(
+                isNetworkReachable: false,
+                currentSSID: "Office Wi-Fi",
+                targetSSID: "Min iPhone"
+            )
+        )
+    }
+
+    func testDoesNotAttemptHotspotRecoveryWhenNetworkIsReachable() {
+        XCTAssertFalse(
+            NetworkRecoveryConnector.shouldAttemptHotspotRecovery(
+                isNetworkReachable: true,
+                currentSSID: nil,
+                targetSSID: "Min iPhone"
+            )
+        )
+    }
+
+    func testDoesNotAttemptHotspotRecoveryWhenTargetIsAlreadyConnected() {
+        XCTAssertFalse(
+            NetworkRecoveryConnector.shouldAttemptHotspotRecovery(
+                isNetworkReachable: false,
+                currentSSID: "Min iPhone",
+                targetSSID: "Min iPhone"
             )
         )
     }
