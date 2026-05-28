@@ -390,7 +390,14 @@ final class AppState: ObservableObject {
             return false
         }
 
-        return !Set(networkRecoveryNearbySSIDOptions).contains(selectedSSID)
+        let knownSSIDs = Set(
+            NetworkRecoveryConnector.uniqueNetworkNames(networkRecoveryNearbySSIDs + networkRecoverySavedSSIDs)
+        )
+        guard knownSSIDs.contains(selectedSSID) else {
+            return true
+        }
+
+        return false
     }
 
     var networkRecoveryTestButtonTitle: String {

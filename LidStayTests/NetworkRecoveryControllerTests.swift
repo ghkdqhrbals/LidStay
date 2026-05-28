@@ -90,6 +90,46 @@ final class NetworkRecoveryControllerTests: XCTestCase {
         )
     }
 
+    func testSatisfiedWiFiPathWithoutAssociationIsNotUsable() {
+        XCTAssertFalse(
+            NetworkRecoveryConnector.isUsableNetworkPath(
+                statusSatisfied: true,
+                requiresWiFiAssociation: true,
+                currentWiFiSSID: nil
+            )
+        )
+    }
+
+    func testSatisfiedWiFiPathWithAssociationIsUsable() {
+        XCTAssertTrue(
+            NetworkRecoveryConnector.isUsableNetworkPath(
+                statusSatisfied: true,
+                requiresWiFiAssociation: true,
+                currentWiFiSSID: "Min iPhone"
+            )
+        )
+    }
+
+    func testSatisfiedNonWiFiPathIsUsableWithoutWiFiAssociation() {
+        XCTAssertTrue(
+            NetworkRecoveryConnector.isUsableNetworkPath(
+                statusSatisfied: true,
+                requiresWiFiAssociation: false,
+                currentWiFiSSID: nil
+            )
+        )
+    }
+
+    func testUnsatisfiedPathIsNotUsable() {
+        XCTAssertFalse(
+            NetworkRecoveryConnector.isUsableNetworkPath(
+                statusSatisfied: false,
+                requiresWiFiAssociation: false,
+                currentWiFiSSID: "Min iPhone"
+            )
+        )
+    }
+
     func testParsesNetworkServiceNameForWiFiDevice() {
         let output = """
         An asterisk (*) denotes that a network service is disabled.

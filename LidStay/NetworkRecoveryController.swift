@@ -51,6 +51,7 @@ final class NetworkRecoveryController {
     private var retryTask: Task<Void, Never>?
     private var connectionTask: Task<Void, Never>?
     private var lastPathSummary: String?
+    private var lastAvailabilityWarning: String?
 
     func update(configuration newConfiguration: NetworkRecoveryConfiguration) {
         guard newConfiguration != configuration else {
@@ -134,7 +135,7 @@ final class NetworkRecoveryController {
             return
         }
 
-        if path.status == .satisfied {
+        if isPathCurrentlyUsable(path) {
             cancelPendingWork()
             let wasMonitoring = status == .monitoring
             setStatus(.monitoring)
@@ -177,7 +178,7 @@ final class NetworkRecoveryController {
             return
         }
 
-        guard lastPath?.status != .satisfied else {
+        if let lastPath, isPathCurrentlyUsable(lastPath) {
             setStatus(.monitoring)
             onEvent?(NetworkRecoveryEvent(detail: "Skip hotspot connection because network recovered before retry", succeeded: true))
             return
@@ -245,6 +246,38 @@ final class NetworkRecoveryController {
 
         lastPathSummary = summary
         onEvent?(NetworkRecoveryEvent(detail: summary, succeeded: path.status == .satisfied))
+    }
+
+    private func isPathCurrentlyUsable(_ path: NWPath) -> Bool {
+        let requiresWiFiAssociation = Self.requiresWiFiAssociation(path)
+        let currentSSID = requiresWiFiAssociation ? NetworkRecoveryConnector.currentAssociatedWiFiSSID() : nil
+        let isUsable = NetworkRecoveryConnector.isUsableNetworkPath(
+            statusSatisfied: path.status == .satisfied,
+            requiresWiFiAssociation: requiresWiFiAssociation,
+            currentWiFiSSID: currentSSID
+        )
+
+        if isUsable {
+            lastAvailabilityWarning = nil
+            return true
+        }
+
+        if path.status == .satisfied, requiresWiFiAssociation {
+            let warning = "Network path is satisfied, but Wi-Fi is not associated; keeping hotspot retry active"
+            if lastAvailabilityWarning != warning {
+                lastAvailabilityWarning = warning
+                onEvent?(NetworkRecoveryEvent(detail: warning, succeeded: false))
+            }
+        }
+
+        return false
+    }
+
+    private static func requiresWiFiAssociation(_ path: NWPath) -> Bool {
+        let hasNonWiFiInterface = path.usesInterfaceType(.wiredEthernet)
+            || path.usesInterfaceType(.cellular)
+            || path.usesInterfaceType(.other)
+        return path.usesInterfaceType(.wifi) && !hasNonWiFiInterface
     }
 
     private static func pathSummary(_ path: NWPath) -> String {
@@ -427,6 +460,39 @@ enum NetworkRecoveryConnector {
             || message.localizedCaseInsensitiveContains("network not found")
             || message.localizedCaseInsensitiveContains("not found")
             || message.localizedCaseInsensitiveContains("error:")
+    }
+
+    static func isUsableNetworkPath(
+        statusSatisfied: Bool,
+        requiresWiFiAssociation: Bool,
+        currentWiFiSSID: String?
+    ) -> Bool {
+        guard statusSatisfied else {
+            return false
+        }
+
+        guard requiresWiFiAssociation else {
+            return true
+        }
+
+        guard let currentWiFiSSID else {
+            return false
+        }
+
+        return !currentWiFiSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    static func currentAssociatedWiFiSSID() -> String? {
+        if let ssid = CWWiFiClient.shared().interface()?.ssid(),
+           !ssid.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return ssid
+        }
+
+        guard case .success(let device) = wifiDevice() else {
+            return nil
+        }
+
+        return currentWirelessNetworkName(device: device)
     }
 
     static func networkServiceName(forDevice targetDevice: String, from output: String) -> String? {
