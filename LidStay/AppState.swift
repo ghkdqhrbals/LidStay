@@ -73,6 +73,9 @@ final class AppState: ObservableObject {
     @Published var networkRecoveryEnabled: Bool {
         didSet {
             defaults.set(networkRecoveryEnabled, forKey: DefaultsKey.networkRecoveryEnabled)
+            if networkRecoveryEnabled {
+                refreshNetworkRecoverySSIDCandidatesIfNeeded()
+            }
             refreshNetworkRecovery()
         }
     }
@@ -111,6 +114,8 @@ final class AppState: ObservableObject {
     @Published private(set) var now = Date()
     @Published private(set) var debugEvents: [DebugEvent] = []
     @Published private(set) var networkRecoveryStatus: NetworkRecoveryStatus = .off
+    @Published private(set) var networkRecoverySSIDCandidates: [String] = []
+    @Published private(set) var isNetworkRecoverySSIDRefreshInProgress = false
     @Published private var menuBarIconAnimationName: String?
     @Published var durationMinutesText: String {
         didSet {
@@ -301,6 +306,25 @@ final class AppState: ObservableObject {
         case .unavailable:
             return language == .korean ? "Wi-Fi를 찾지 못함" : "Wi-Fi unavailable"
         }
+    }
+
+    var networkRecoverySSIDOptions: [String] {
+        NetworkRecoveryConnector.uniqueNetworkNames([networkRecoverySSIDText] + networkRecoverySSIDCandidates)
+    }
+
+    var networkRecoveryPickerStatusTitle: String {
+        if isNetworkRecoverySSIDRefreshInProgress {
+            return language == .korean ? "목록 확인 중" : "Checking networks"
+        }
+
+        if networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if networkRecoverySSIDCandidates.isEmpty {
+                return language == .korean ? "저장된 Wi-Fi 없음" : "No saved Wi-Fi"
+            }
+            return language == .korean ? "핫스팟 선택" : "Choose hotspot"
+        }
+
+        return networkRecoveryStatusTitle
     }
 
     var statusIndicatorSymbolName: String {
@@ -962,6 +986,41 @@ final class AppState: ObservableObject {
 
     func selectNetworkRecoveryRetrySeconds(_ seconds: Int) {
         networkRecoveryRetrySecondsText = String(min(600, max(5, seconds)))
+    }
+
+    func selectNetworkRecoverySSID(_ ssid: String) {
+        networkRecoverySSIDText = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func refreshNetworkRecoverySSIDCandidatesIfNeeded() {
+        guard networkRecoverySSIDCandidates.isEmpty else {
+            return
+        }
+
+        refreshNetworkRecoverySSIDCandidates()
+    }
+
+    func refreshNetworkRecoverySSIDCandidates() {
+        guard !isNetworkRecoverySSIDRefreshInProgress else {
+            return
+        }
+
+        isNetworkRecoverySSIDRefreshInProgress = true
+        Task { [weak self] in
+            let candidates = await NetworkRecoveryConnector.wirelessNetworkCandidates()
+
+            guard let self else {
+                return
+            }
+
+            self.networkRecoverySSIDCandidates = candidates
+            self.isNetworkRecoverySSIDRefreshInProgress = false
+            self.appendDebugEvent(
+                title: "Network",
+                detail: "Loaded \(candidates.count) saved Wi-Fi network candidates",
+                succeeded: true
+            )
+        }
     }
 
     func showLowBatteryLimitPrompt() {

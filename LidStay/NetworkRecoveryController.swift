@@ -217,6 +217,28 @@ enum NetworkRecoveryAttemptResult: Equatable {
 }
 
 enum NetworkRecoveryConnector {
+    static func wirelessNetworkCandidates() async -> [String] {
+        await Task.detached(priority: .utility) {
+            guard let device = wifiDeviceName() else {
+                return []
+            }
+
+            let currentNetworkResult = runProcess(
+                executablePath: "/usr/sbin/networksetup",
+                arguments: ["-getairportnetwork", device]
+            )
+            let preferredNetworksResult = runProcess(
+                executablePath: "/usr/sbin/networksetup",
+                arguments: ["-listpreferredwirelessnetworks", device]
+            )
+
+            return uniqueNetworkNames(
+                [currentNetworkName(from: currentNetworkResult.stdout)].compactMap { $0 }
+                + preferredNetworkNames(from: preferredNetworksResult.stdout)
+            )
+        }.value
+    }
+
     static func connect(toSSID ssid: String) async -> NetworkRecoveryAttemptResult {
         await Task.detached(priority: .utility) {
             guard let device = wifiDeviceName() else {
@@ -256,6 +278,50 @@ enum NetworkRecoveryConnector {
         }
 
         return nil
+    }
+
+    static func preferredNetworkNames(from output: String) -> [String] {
+        let names = output
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .dropFirst()
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        return uniqueNetworkNames(names)
+    }
+
+    static func currentNetworkName(from output: String) -> String? {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return nil
+        }
+
+        if trimmed.localizedCaseInsensitiveContains("not associated") {
+            return nil
+        }
+
+        guard let separatorIndex = trimmed.firstIndex(of: ":") else {
+            return nil
+        }
+
+        let name = trimmed[trimmed.index(after: separatorIndex)...]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? nil : name
+    }
+
+    static func uniqueNetworkNames(_ names: [String]) -> [String] {
+        var seen = Set<String>()
+        var uniqueNames: [String] = []
+
+        for name in names {
+            let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedName.isEmpty, seen.insert(trimmedName).inserted else {
+                continue
+            }
+            uniqueNames.append(trimmedName)
+        }
+
+        return uniqueNames
     }
 
     private static func listHardwarePorts() -> String {

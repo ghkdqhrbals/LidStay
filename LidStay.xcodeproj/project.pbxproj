@@ -27,6 +27,8 @@
 		8A1C3CAD2C6A4A16008B1010 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 8A1C3CAC2C6A4A16008B1010 /* Sparkle */; };
 		8A2D10062C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */; };
 		8A2D10072C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D10032C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift */; };
+		8A3B20032C8A0001008B1010 /* NetworkRecoveryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3B20012C8A0001008B1010 /* NetworkRecoveryController.swift */; };
+		8A3B20042C8A0001008B1010 /* NetworkRecoveryControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3B20052C8A0001008B1010 /* NetworkRecoveryControllerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +53,7 @@
 		8A1C3CAE2C6A4A16008B1010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A2D10022C7F0001008B1010 /* LidStayTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LidStayTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A2D10032C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClosedLidBrightnessControllerTests.swift; sourceTree = "<group>"; };
+		8A3B20052C8A0001008B1010 /* NetworkRecoveryControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRecoveryControllerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -130,6 +133,7 @@
 			isa = PBXGroup;
 			children = (
 				8A2D10032C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift */,
+				8A3B20052C8A0001008B1010 /* NetworkRecoveryControllerTests.swift */,
 			);
 			path = LidStayTests;
 			sourceTree = "<group>";
@@ -264,6 +268,8 @@
 			files = (
 				8A2D10062C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */,
 				8A2D10072C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift in Sources */,
+				8A3B20032C8A0001008B1010 /* NetworkRecoveryController.swift in Sources */,
+				8A3B20042C8A0001008B1010 /* NetworkRecoveryControllerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

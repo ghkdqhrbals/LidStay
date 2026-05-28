@@ -78,10 +78,25 @@ struct OptionsView: View {
                     HStack(spacing: 10) {
                         Toggle("", isOn: $appState.networkRecoveryEnabled)
                             .labelsHidden()
-                        TextField(isKorean ? "핫스팟 이름" : "Hotspot name", text: $appState.networkRecoverySSIDText)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 150)
-                            .disabled(!appState.networkRecoveryEnabled)
+                        Picker("", selection: networkRecoverySSIDBinding) {
+                            Text(isKorean ? "선택" : "Choose")
+                                .tag("")
+                            ForEach(appState.networkRecoverySSIDOptions, id: \.self) { ssid in
+                                Text(ssid).tag(ssid)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: 170)
+                        .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
+                        Button {
+                            appState.refreshNetworkRecoverySSIDCandidates()
+                        } label: {
+                            Image(systemName: appState.isNetworkRecoverySSIDRefreshInProgress ? "hourglass" : "arrow.clockwise")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
+                        .help(isKorean ? "저장된 Wi-Fi 목록 다시 확인" : "Refresh saved Wi-Fi networks")
                         Picker("", selection: networkRecoveryRetryBinding) {
                             Text("15s").tag(15)
                             Text("30s").tag(30)
@@ -91,7 +106,7 @@ struct OptionsView: View {
                         .labelsHidden()
                         .frame(width: 78)
                         .disabled(!appState.networkRecoveryEnabled)
-                        Text(appState.networkRecoveryStatusTitle)
+                        Text(appState.networkRecoveryPickerStatusTitle)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -224,6 +239,9 @@ struct OptionsView: View {
         }
         .padding(22)
         .frame(width: 620, height: optionsWindowHeight)
+        .onAppear {
+            appState.refreshNetworkRecoverySSIDCandidatesIfNeeded()
+        }
         .popover(item: $helpTopic) { topic in
             VStack(alignment: .leading, spacing: 8) {
                 Text(topic.title(isKorean: isKorean))
@@ -323,6 +341,17 @@ struct OptionsView: View {
             },
             set: { seconds in
                 appState.selectNetworkRecoveryRetrySeconds(seconds)
+            }
+        )
+    }
+
+    private var networkRecoverySSIDBinding: Binding<String> {
+        Binding(
+            get: {
+                appState.networkRecoverySSIDText
+            },
+            set: { ssid in
+                appState.selectNetworkRecoverySSID(ssid)
             }
         )
     }
@@ -456,8 +485,8 @@ private enum HelpTopic: Identifiable {
                 : "When enabled, LidStay checks for updates and installs them automatically when possible. macOS may still ask when authorization is required."
         case .networkRecovery:
             return isKorean
-                ? "Mac 켜두는 중 네트워크가 끊기면, 이전에 연결해 둔 핫스팟 이름으로 자동 연결을 시도합니다."
-                : "When the network drops while LidStay is keeping your Mac on, it tries to join the hotspot name you entered. Join it once in macOS first."
+                ? "Mac 켜두는 중 네트워크가 끊기면, 저장된 Wi-Fi 목록에서 선택한 핫스팟으로 자동 연결을 시도합니다."
+                : "When the network drops while LidStay is keeping your Mac on, it tries to join the hotspot selected from saved Wi-Fi networks."
         case .language:
             return isKorean
                 ? "메뉴와 옵션 창의 표시 언어를 바꿉니다."
