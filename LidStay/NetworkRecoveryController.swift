@@ -290,16 +290,26 @@ enum NetworkRecoveryConnector {
                 return .wifiDeviceUnavailable
             }
 
-            let result = runProcess(
+            let coreWLANResult = connectUsingCoreWLAN(toSSID: ssid, password: password)
+            if coreWLANResult == .success {
+                return await verifiedConnectionResult(device: device, targetSSID: ssid)
+            }
+
+            let networkSetupResult = runProcess(
                 executablePath: "/usr/sbin/networksetup",
                 arguments: setAirportNetworkArguments(device: device, ssid: ssid, password: password)
             )
 
-            if result.exitCode == 0, !commandReportsJoinFailure(result) {
+            if networkSetupResult.exitCode == 0, !commandReportsJoinFailure(networkSetupResult) {
                 return await verifiedConnectionResult(device: device, targetSSID: ssid)
             }
 
-            return .failed(commandFailureMessage(result))
+            let networkSetupMessage = commandFailureMessage(networkSetupResult)
+            if case .failed(let coreWLANMessage) = coreWLANResult {
+                return .failed("CoreWLAN failed: \(coreWLANMessage); networksetup failed: \(networkSetupMessage)")
+            }
+
+            return .failed(networkSetupMessage)
         }.value
     }
 
@@ -386,25 +396,34 @@ enum NetworkRecoveryConnector {
     }
 
     private static func nearbyNetworkNames() -> NearbyNetworkScanResult {
-        guard let interface = CWWiFiClient.shared().interface() else {
-            return NearbyNetworkScanResult(names: [], errorMessage: "Wi-Fi interface not found")
-        }
+        var names: [String] = []
+        var errorMessage: String?
 
-        do {
-            let networks = try interface.scanForNetworks(withSSID: nil)
-            let names = networks
-                .sorted { first, second in
-                    if first.rssiValue == second.rssiValue {
-                        return (first.ssid ?? "") < (second.ssid ?? "")
+        if let interface = CWWiFiClient.shared().interface() {
+            do {
+                let networks = try interface.scanForNetworks(withSSID: nil)
+                names += networks
+                    .sorted { first, second in
+                        if first.rssiValue == second.rssiValue {
+                            return (first.ssid ?? "") < (second.ssid ?? "")
+                        }
+                        return first.rssiValue > second.rssiValue
                     }
-                    return first.rssiValue > second.rssiValue
-                }
-                .compactMap { $0.ssid }
-
-            return NearbyNetworkScanResult(names: uniqueNetworkNames(names), errorMessage: nil)
-        } catch {
-            return NearbyNetworkScanResult(names: [], errorMessage: error.localizedDescription)
+                    .compactMap { $0.ssid }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        } else {
+            errorMessage = "Wi-Fi interface not found"
         }
+
+        names += systemProfilerLocalNetworkNames()
+
+        let uniqueNames = uniqueNetworkNames(names)
+        return NearbyNetworkScanResult(
+            names: uniqueNames,
+            errorMessage: uniqueNames.isEmpty ? errorMessage : nil
+        )
     }
 
     private static func wifiDevice() -> WiFiDeviceLookupResult {
@@ -449,6 +468,11 @@ enum NetworkRecoveryConnector {
     }
 
     private static func currentWirelessNetworkName(device: String) -> String? {
+        if let ssid = CWWiFiClient.shared().interface()?.ssid(),
+           !ssid.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return ssid
+        }
+
         let result = runProcess(
             executablePath: "/usr/sbin/networksetup",
             arguments: ["-getairportnetwork", device]
@@ -461,10 +485,85 @@ enum NetworkRecoveryConnector {
         return currentNetworkName(from: result.stdout)
     }
 
+    private static func connectUsingCoreWLAN(toSSID ssid: String, password: String) -> NetworkRecoveryAttemptResult {
+        guard let interface = CWWiFiClient.shared().interface() else {
+            return .wifiDeviceUnavailable
+        }
+
+        let targetSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !targetSSID.isEmpty else {
+            return .failed("Hotspot name is empty")
+        }
+
+        do {
+            let networks = try interface.scanForNetworks(withSSID: nil)
+            guard let network = networks
+                .filter({ $0.ssid == targetSSID })
+                .sorted(by: { $0.rssiValue > $1.rssiValue })
+                .first else {
+                return .failed("network \"\(targetSSID)\" is not visible to CoreWLAN")
+            }
+
+            let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+            try interface.associate(to: network, password: trimmedPassword.isEmpty ? nil : trimmedPassword)
+            return .success
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
+    private static func systemProfilerLocalNetworkNames() -> [String] {
+        let result = runProcess(
+            executablePath: "/usr/sbin/system_profiler",
+            arguments: ["SPAirPortDataType"]
+        )
+
+        guard result.exitCode == 0 else {
+            return []
+        }
+
+        return localNetworkNames(fromSystemProfiler: result.stdout)
+    }
+
     private static func commandFailureMessage(_ result: ProcessResult) -> String {
         let message = result.stderr.isEmpty ? result.stdout : result.stderr
         let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedMessage.isEmpty ? "networksetup failed with status \(result.exitCode)" : trimmedMessage
+    }
+
+    static func localNetworkNames(fromSystemProfiler output: String) -> [String] {
+        var names: [String] = []
+        var isInsideNetworkSection = false
+
+        for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = String(rawLine)
+            let leadingSpaces = line.prefix { $0 == " " }.count
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if trimmedLine == "Current Network Information:" || trimmedLine == "Other Local Wi-Fi Networks:" {
+                isInsideNetworkSection = true
+                continue
+            }
+
+            guard isInsideNetworkSection else {
+                continue
+            }
+
+            if !trimmedLine.isEmpty, leadingSpaces <= 8 {
+                isInsideNetworkSection = false
+                continue
+            }
+
+            guard leadingSpaces == 12,
+                  trimmedLine.hasSuffix(":"),
+                  !trimmedLine.contains("Network Information") else {
+                continue
+            }
+
+            names.append(String(trimmedLine.dropLast()))
+        }
+
+        return uniqueNetworkNames(names)
     }
 
     private static func commandReportsJoinFailure(_ result: ProcessResult) -> Bool {

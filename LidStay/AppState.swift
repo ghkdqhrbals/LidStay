@@ -75,7 +75,7 @@ final class AppState: ObservableObject {
         didSet {
             defaults.set(networkRecoveryEnabled, forKey: DefaultsKey.networkRecoveryEnabled)
             if networkRecoveryEnabled {
-                refreshNetworkRecoverySSIDCandidatesIfNeeded()
+                refreshNetworkRecoverySSIDCandidates()
             }
             refreshNetworkRecovery()
         }

@@ -66,6 +66,33 @@ final class NetworkRecoveryControllerTests: XCTestCase {
         )
     }
 
+    func testParsesLocalNetworkNamesFromSystemProfiler() {
+        let output = """
+        Wi-Fi:
+
+              Interfaces:
+                en0:
+                  Current Network Information:
+                    Coffeebean:
+                      PHY Mode: 802.11ac
+                  Other Local Wi-Fi Networks:
+                    Coffeebean:
+                      PHY Mode: 802.11b/g/n
+                    Min iPhone:
+                      PHY Mode: 802.11b/g/n/ax
+                    U+Net8AD4:
+                      PHY Mode: 802.11b/g/n/ax
+                awdl0:
+                  Current Network Information:
+                      Network Type: Infrastructure
+        """
+
+        XCTAssertEqual(
+            NetworkRecoveryConnector.localNetworkNames(fromSystemProfiler: output),
+            ["Coffeebean", "Min iPhone", "U+Net8AD4"]
+        )
+    }
+
     func testConnectionVerificationFailureShowsCurrentNetworkMismatch() {
         XCTAssertEqual(
             NetworkRecoveryConnector.connectionVerificationFailureMessage(

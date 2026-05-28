@@ -285,7 +285,7 @@ struct OptionsView: View {
         .padding(22)
         .frame(width: 620, height: optionsWindowHeight)
         .onAppear {
-            appState.refreshNetworkRecoverySSIDCandidatesIfNeeded()
+            appState.refreshNetworkRecoverySSIDCandidates()
         }
         .popover(item: $helpTopic) { topic in
             VStack(alignment: .leading, spacing: 8) {
