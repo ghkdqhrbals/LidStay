@@ -1,3 +1,4 @@
+import CoreWLAN
 import Foundation
 import Network
 
@@ -217,8 +218,17 @@ enum NetworkRecoveryAttemptResult: Equatable {
 }
 
 enum NetworkRecoveryCandidateResult: Equatable {
-    case success([String])
+    case success(NetworkRecoveryCandidateList)
     case failed(String)
+}
+
+struct NetworkRecoveryCandidateList: Equatable {
+    let nearby: [String]
+    let saved: [String]
+
+    var all: [String] {
+        NetworkRecoveryConnector.uniqueNetworkNames(nearby + saved)
+    }
 }
 
 enum NetworkRecoveryConnector {
@@ -226,6 +236,7 @@ enum NetworkRecoveryConnector {
         await Task.detached(priority: .utility) {
             switch wifiDevice() {
             case .success(let device):
+                let nearbyNetworksResult = nearbyNetworkNames()
                 let currentNetworkResult = runProcess(
                     executablePath: "/usr/sbin/networksetup",
                     arguments: ["-getairportnetwork", device]
@@ -242,10 +253,23 @@ enum NetworkRecoveryConnector {
                 let currentNetwork = currentNetworkResult.exitCode == 0
                     ? currentNetworkName(from: currentNetworkResult.stdout)
                     : nil
-                let candidates = uniqueNetworkNames(
+                let nearbyNetworks = nearbyNetworksResult.names
+                let savedNetworks = uniqueNetworkNames(
                     [currentNetwork].compactMap { $0 }
                     + preferredNetworkNames(from: preferredNetworksResult.stdout)
                 )
+
+                let candidates = NetworkRecoveryCandidateList(
+                    nearby: nearbyNetworks,
+                    saved: savedNetworks
+                )
+
+                guard !candidates.all.isEmpty else {
+                    if let errorMessage = nearbyNetworksResult.errorMessage {
+                        return .failed(errorMessage)
+                    }
+                    return .success(candidates)
+                }
 
                 return .success(candidates)
             case .failure(let message):
@@ -338,6 +362,28 @@ enum NetworkRecoveryConnector {
         return uniqueNames
     }
 
+    private static func nearbyNetworkNames() -> NearbyNetworkScanResult {
+        guard let interface = CWWiFiClient.shared().interface() else {
+            return NearbyNetworkScanResult(names: [], errorMessage: "Wi-Fi interface not found")
+        }
+
+        do {
+            let networks = try interface.scanForNetworks(withSSID: nil)
+            let names = networks
+                .sorted { first, second in
+                    if first.rssiValue == second.rssiValue {
+                        return (first.ssid ?? "") < (second.ssid ?? "")
+                    }
+                    return first.rssiValue > second.rssiValue
+                }
+                .compactMap { $0.ssid }
+
+            return NearbyNetworkScanResult(names: uniqueNetworkNames(names), errorMessage: nil)
+        } catch {
+            return NearbyNetworkScanResult(names: [], errorMessage: error.localizedDescription)
+        }
+    }
+
     private static func wifiDevice() -> WiFiDeviceLookupResult {
         let result = runProcess(executablePath: "/usr/sbin/networksetup", arguments: ["-listallhardwareports"])
         guard result.exitCode == 0 else {
@@ -385,6 +431,11 @@ enum NetworkRecoveryConnector {
 private enum WiFiDeviceLookupResult {
     case success(String)
     case failure(String)
+}
+
+private struct NearbyNetworkScanResult {
+    let names: [String]
+    let errorMessage: String?
 }
 
 private struct ProcessResult {

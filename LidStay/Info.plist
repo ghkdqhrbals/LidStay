@@ -30,6 +30,10 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
+	<key>NSLocationUsageDescription</key>
+	<string>LidStay scans nearby Wi-Fi names so you can choose a hotspot for automatic reconnection.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>LidStay scans nearby Wi-Fi names so you can choose a hotspot for automatic reconnection.</string>
 	<key>SUAutomaticallyUpdate</key>
 	<false/>
 	<key>SUEnableAutomaticChecks</key>

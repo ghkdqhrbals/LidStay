@@ -114,7 +114,8 @@ final class AppState: ObservableObject {
     @Published private(set) var now = Date()
     @Published private(set) var debugEvents: [DebugEvent] = []
     @Published private(set) var networkRecoveryStatus: NetworkRecoveryStatus = .off
-    @Published private(set) var networkRecoverySSIDCandidates: [String] = []
+    @Published private(set) var networkRecoveryNearbySSIDs: [String] = []
+    @Published private(set) var networkRecoverySavedSSIDs: [String] = []
     @Published private(set) var isNetworkRecoverySSIDRefreshInProgress = false
     @Published private(set) var networkRecoverySSIDRefreshError: String?
     @Published private(set) var isNetworkRecoveryTestInProgress = false
@@ -312,7 +313,29 @@ final class AppState: ObservableObject {
     }
 
     var networkRecoverySSIDOptions: [String] {
-        NetworkRecoveryConnector.uniqueNetworkNames([networkRecoverySSIDText] + networkRecoverySSIDCandidates)
+        NetworkRecoveryConnector.uniqueNetworkNames(
+            [networkRecoverySSIDText] + networkRecoveryNearbySSIDs + networkRecoverySavedSSIDs
+        )
+    }
+
+    var networkRecoveryNearbySSIDOptions: [String] {
+        NetworkRecoveryConnector.uniqueNetworkNames(networkRecoveryNearbySSIDs)
+    }
+
+    var networkRecoverySavedSSIDOptions: [String] {
+        let nearby = Set(networkRecoveryNearbySSIDOptions)
+        return NetworkRecoveryConnector.uniqueNetworkNames(networkRecoverySavedSSIDs)
+            .filter { !nearby.contains($0) }
+    }
+
+    var networkRecoverySelectedSSIDFallbackOption: String? {
+        let selected = networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !selected.isEmpty else {
+            return nil
+        }
+
+        let knownOptions = Set(networkRecoveryNearbySSIDOptions + networkRecoverySavedSSIDOptions)
+        return knownOptions.contains(selected) ? nil : selected
     }
 
     var networkRecoveryPickerStatusTitle: String {
@@ -325,8 +348,8 @@ final class AppState: ObservableObject {
         }
 
         if networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            if networkRecoverySSIDCandidates.isEmpty {
-                return language == .korean ? "저장된 Wi-Fi 없음" : "No saved Wi-Fi"
+            if networkRecoverySSIDOptions.isEmpty {
+                return language == .korean ? "근처 Wi-Fi 없음" : "No nearby Wi-Fi"
             }
             return language == .korean ? "핫스팟 선택" : "Choose hotspot"
         }
@@ -1029,7 +1052,7 @@ final class AppState: ObservableObject {
     }
 
     func refreshNetworkRecoverySSIDCandidatesIfNeeded() {
-        guard networkRecoverySSIDCandidates.isEmpty else {
+        guard networkRecoveryNearbySSIDs.isEmpty, networkRecoverySavedSSIDs.isEmpty else {
             return
         }
 
@@ -1051,19 +1074,21 @@ final class AppState: ObservableObject {
 
             switch result {
             case .success(let candidates):
-                self.networkRecoverySSIDCandidates = candidates
+                self.networkRecoveryNearbySSIDs = candidates.nearby
+                self.networkRecoverySavedSSIDs = candidates.saved
                 self.networkRecoverySSIDRefreshError = nil
                 self.appendDebugEvent(
                     title: "Network",
-                    detail: "Loaded \(candidates.count) saved Wi-Fi network candidates",
+                    detail: "Loaded \(candidates.nearby.count) nearby and \(candidates.saved.count) saved Wi-Fi network candidates",
                     succeeded: true
                 )
             case .failed(let message):
-                self.networkRecoverySSIDCandidates = []
+                self.networkRecoveryNearbySSIDs = []
+                self.networkRecoverySavedSSIDs = []
                 self.networkRecoverySSIDRefreshError = message
                 self.appendDebugEvent(
                     title: "Network",
-                    detail: "Load saved Wi-Fi networks failed: \(message)",
+                    detail: "Load Wi-Fi networks failed: \(message)",
                     succeeded: false
                 )
             }

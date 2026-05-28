@@ -81,8 +81,22 @@ struct OptionsView: View {
                         Picker("", selection: networkRecoverySSIDBinding) {
                             Text(isKorean ? "선택" : "Choose")
                                 .tag("")
-                            ForEach(appState.networkRecoverySSIDOptions, id: \.self) { ssid in
-                                Text(ssid).tag(ssid)
+                            if let selectedSSID = appState.networkRecoverySelectedSSIDFallbackOption {
+                                Text(selectedSSID).tag(selectedSSID)
+                            }
+                            if !appState.networkRecoveryNearbySSIDOptions.isEmpty {
+                                Section(isKorean ? "근처 네트워크" : "Nearby") {
+                                    ForEach(appState.networkRecoveryNearbySSIDOptions, id: \.self) { ssid in
+                                        Text(ssid).tag(ssid)
+                                    }
+                                }
+                            }
+                            if !appState.networkRecoverySavedSSIDOptions.isEmpty {
+                                Section(isKorean ? "저장된 네트워크" : "Saved") {
+                                    ForEach(appState.networkRecoverySavedSSIDOptions, id: \.self) { ssid in
+                                        Text(ssid).tag(ssid)
+                                    }
+                                }
                             }
                         }
                         .labelsHidden()
@@ -96,7 +110,7 @@ struct OptionsView: View {
                         }
                         .buttonStyle(.borderless)
                         .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
-                        .help(isKorean ? "저장된 Wi-Fi 목록 다시 확인" : "Refresh saved Wi-Fi networks")
+                        .help(isKorean ? "근처 Wi-Fi 목록 다시 확인" : "Refresh nearby Wi-Fi networks")
                         Picker("", selection: networkRecoveryRetryBinding) {
                             Text("15s").tag(15)
                             Text("30s").tag(30)
