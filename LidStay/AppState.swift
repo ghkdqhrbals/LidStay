@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import IOKit
+import Security
 import UserNotifications
 
 @MainActor
@@ -70,6 +71,38 @@ final class AppState: ObservableObject {
         }
     }
 
+    @Published var networkRecoveryEnabled: Bool {
+        didSet {
+            defaults.set(networkRecoveryEnabled, forKey: DefaultsKey.networkRecoveryEnabled)
+            if networkRecoveryEnabled {
+                refreshNetworkRecoverySSIDCandidates()
+            }
+            refreshNetworkRecovery()
+        }
+    }
+
+    @Published var networkRecoverySSIDText: String {
+        didSet {
+            defaults.set(networkRecoverySSIDText, forKey: DefaultsKey.networkRecoverySSIDText)
+            networkRecoveryPasswordText = Self.keychainPassword(for: networkRecoverySSIDText)
+            refreshNetworkRecovery()
+        }
+    }
+
+    @Published var networkRecoveryPasswordText: String {
+        didSet {
+            Self.setKeychainPassword(networkRecoveryPasswordText, for: networkRecoverySSIDText)
+            refreshNetworkRecovery()
+        }
+    }
+
+    @Published var networkRecoveryRetrySecondsText: String {
+        didSet {
+            defaults.set(networkRecoveryRetrySecondsText, forKey: DefaultsKey.networkRecoveryRetrySecondsText)
+            refreshNetworkRecovery()
+        }
+    }
+
     @Published var developerModeEnabled: Bool {
         didSet {
             defaults.set(developerModeEnabled, forKey: DefaultsKey.developerModeEnabled)
@@ -89,6 +122,13 @@ final class AppState: ObservableObject {
     @Published private(set) var sessionEndDate: Date?
     @Published private(set) var now = Date()
     @Published private(set) var debugEvents: [DebugEvent] = []
+    @Published private(set) var networkRecoveryStatus: NetworkRecoveryStatus = .off
+    @Published private(set) var networkRecoveryNearbySSIDs: [String] = []
+    @Published private(set) var networkRecoverySavedSSIDs: [String] = []
+    @Published private(set) var isNetworkRecoverySSIDRefreshInProgress = false
+    @Published private(set) var networkRecoverySSIDRefreshError: String?
+    @Published private(set) var isNetworkRecoveryTestInProgress = false
+    @Published private(set) var networkRecoveryTestMessage: String?
     @Published private var menuBarIconAnimationName: String?
     @Published var durationMinutesText: String {
         didSet {
@@ -114,6 +154,7 @@ final class AppState: ObservableObject {
     private let defaults: UserDefaults
     private let assertionController: PowerAssertionController
     private let powerSourceMonitor: PowerSourceMonitor
+    private let networkRecoveryController: NetworkRecoveryController
     private let notificationController = AppNotificationController.shared
     private var sessionTimer: Timer?
     private var iconAnimationTask: Task<Void, Never>?
@@ -123,17 +164,24 @@ final class AppState: ObservableObject {
     init(
         defaults: UserDefaults = .standard,
         assertionController: PowerAssertionController = PowerAssertionController(),
-        powerSourceMonitor: PowerSourceMonitor = PowerSourceMonitor()
+        powerSourceMonitor: PowerSourceMonitor = PowerSourceMonitor(),
+        networkRecoveryController: NetworkRecoveryController? = nil
     ) {
         self.defaults = defaults
         self.assertionController = assertionController
         self.powerSourceMonitor = powerSourceMonitor
+        self.networkRecoveryController = networkRecoveryController ?? NetworkRecoveryController()
         self.isSleepPreventionEnabled = defaults.bool(forKey: DefaultsKey.isSleepPreventionEnabled)
         self.allowOnBattery = defaults.bool(forKey: DefaultsKey.allowOnBattery)
         self.language = AppLanguage(rawValue: defaults.string(forKey: DefaultsKey.language) ?? "") ?? .english
         self.launchAtLoginEnabled = defaults.bool(forKey: DefaultsKey.launchAtLoginEnabled)
         self.autoPauseOnLowBattery = defaults.object(forKey: DefaultsKey.autoPauseOnLowBattery) as? Bool ?? true
         self.startScreenSaverOnClosedLid = defaults.object(forKey: DefaultsKey.startScreenSaverOnClosedLid) as? Bool ?? true
+        self.networkRecoveryEnabled = defaults.object(forKey: DefaultsKey.networkRecoveryEnabled) as? Bool ?? false
+        let savedNetworkRecoverySSID = defaults.string(forKey: DefaultsKey.networkRecoverySSIDText) ?? ""
+        self.networkRecoverySSIDText = savedNetworkRecoverySSID
+        self.networkRecoveryPasswordText = Self.keychainPassword(for: savedNetworkRecoverySSID)
+        self.networkRecoveryRetrySecondsText = defaults.string(forKey: DefaultsKey.networkRecoveryRetrySecondsText) ?? "30"
         self.developerModeEnabled = defaults.object(forKey: DefaultsKey.developerModeEnabled) as? Bool ?? false
         self.lowBatteryLimitText = defaults.string(forKey: DefaultsKey.lowBatteryLimitText) ?? "20"
         self.durationMinutesText = defaults.string(forKey: DefaultsKey.durationMinutesText) ?? "60"
@@ -157,11 +205,18 @@ final class AppState: ObservableObject {
         }
         notificationController.prepare()
 
+        self.networkRecoveryController.onStatusChange = { [weak self] status in
+            self?.networkRecoveryStatus = status
+        }
+        self.networkRecoveryController.onEvent = { [weak self] event in
+            self?.appendDebugEvent(title: "Network", detail: event.detail, succeeded: event.succeeded)
+        }
+
         powerSourceMonitor.onChange = { [weak self] snapshot in
             Task { @MainActor in
                 self?.powerSourceState = snapshot.state
                 self?.batteryPercentage = snapshot.batteryPercentage
-                self?.refreshAssertion()
+                self?.refreshAssertion(forceClamshellReapply: true)
             }
         }
         powerSourceMonitor.start()
@@ -170,6 +225,7 @@ final class AppState: ObservableObject {
             setLaunchAtLogin(true)
         }
         refreshAssertion()
+        refreshNetworkRecovery()
         startCLICommandObserver()
         writeCLIStatus()
     }
@@ -237,6 +293,148 @@ final class AppState: ObservableObject {
         case .failed:
             return "exclamationmark.triangle"
         }
+    }
+
+    var networkRecoveryRetrySeconds: Int {
+        let parsed = Int(networkRecoveryRetrySecondsText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 30
+        return min(600, max(1, parsed))
+    }
+
+    var networkRecoveryStatusTitle: String {
+        switch networkRecoveryStatus {
+        case .off:
+            return language == .korean ? "꺼짐" : "Off"
+        case .waitingForSSID:
+            return language == .korean ? "핫스팟 이름 필요" : "Enter hotspot name"
+        case .ready:
+            return language == .korean ? "켜두는 중에 감시" : "Ready while keeping on"
+        case .monitoring:
+            return language == .korean ? "네트워크 감시 중" : "Watching network"
+        case .waitingToRetry(let seconds):
+            return language == .korean ? "\(seconds)초 후 연결 시도" : "Retry in \(seconds)s"
+        case .connecting:
+            return language == .korean ? "핫스팟 연결 중" : "Connecting"
+        case .connected(let ssid):
+            return language == .korean ? "\(ssid)에 연결됨" : "Connected to \(ssid)"
+        case .failed:
+            return language == .korean ? "연결 실패, 재시도 중" : "Failed, retrying"
+        case .unavailable:
+            return language == .korean ? "Wi-Fi를 찾지 못함" : "Wi-Fi unavailable"
+        }
+    }
+
+    var networkRecoverySSIDOptions: [String] {
+        NetworkRecoveryConnector.uniqueNetworkNames(
+            [networkRecoverySSIDText] + networkRecoveryNearbySSIDs + networkRecoverySavedSSIDs
+        )
+    }
+
+    var networkRecoveryNearbySSIDOptions: [String] {
+        NetworkRecoveryConnector.uniqueNetworkNames(networkRecoveryNearbySSIDs)
+    }
+
+    var networkRecoverySavedSSIDOptions: [String] {
+        let nearby = Set(networkRecoveryNearbySSIDOptions)
+        return NetworkRecoveryConnector.uniqueNetworkNames(networkRecoverySavedSSIDs)
+            .filter { !nearby.contains($0) }
+    }
+
+    var networkRecoverySelectedSSIDFallbackOption: String? {
+        let selected = networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !selected.isEmpty else {
+            return nil
+        }
+
+        let knownOptions = Set(networkRecoveryNearbySSIDOptions + networkRecoverySavedSSIDOptions)
+        return knownOptions.contains(selected) ? nil : selected
+    }
+
+    var networkRecoveryPickerStatusTitle: String {
+        if isNetworkRecoverySSIDRefreshInProgress {
+            return language == .korean ? "목록 확인 중" : "Checking networks"
+        }
+
+        if networkRecoverySSIDRefreshError != nil {
+            return language == .korean ? "목록 확인 실패" : "Could not load Wi-Fi"
+        }
+
+        if networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if networkRecoverySSIDOptions.isEmpty {
+                return language == .korean ? "근처 Wi-Fi 없음" : "No nearby Wi-Fi"
+            }
+            return language == .korean ? "핫스팟 선택" : "Choose hotspot"
+        }
+
+        if isSelectedNetworkRecoverySSIDUnavailable {
+            return language == .korean ? "iPhone 핫스팟 신호 없음" : "Hotspot not visible"
+        }
+
+        return networkRecoveryStatusTitle
+    }
+
+    var isNetworkRecoveryValidationErrorVisible: Bool {
+        guard !isNetworkRecoverySSIDRefreshInProgress else {
+            return false
+        }
+
+        if networkRecoverySSIDRefreshError != nil {
+            return true
+        }
+
+        return isSelectedNetworkRecoverySSIDUnavailable
+    }
+
+    private var isSelectedNetworkRecoverySSIDUnavailable: Bool {
+        let selectedSSID = networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !selectedSSID.isEmpty else {
+            return false
+        }
+
+        let knownSSIDs = Set(
+            NetworkRecoveryConnector.uniqueNetworkNames(networkRecoveryNearbySSIDs + networkRecoverySavedSSIDs)
+        )
+        guard knownSSIDs.contains(selectedSSID) else {
+            return true
+        }
+
+        return false
+    }
+
+    var networkRecoveryTestButtonTitle: String {
+        language == .korean ? "연결 테스트" : "Test Connect"
+    }
+
+    var canTestNetworkRecoveryConnection: Bool {
+        !networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !isNetworkRecoveryTestInProgress
+    }
+
+    var networkRecoveryTestStatusTitle: String {
+        if isNetworkRecoveryTestInProgress {
+            return language == .korean ? "테스트 중" : "Testing"
+        }
+
+        if let networkRecoveryTestMessage {
+            return networkRecoveryTestMessage
+        }
+
+        if networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return language == .korean ? "핫스팟 선택 필요" : "Choose hotspot first"
+        }
+
+        return language == .korean ? "즉시 연결 확인" : "Runs immediately"
+    }
+
+    var networkRecoveryPasswordStatusTitle: String {
+        if networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return language == .korean ? "핫스팟 선택 필요" : "Choose hotspot first"
+        }
+
+        if networkRecoveryPasswordText.isEmpty {
+            return language == .korean ? "iPhone 핫스팟은 암호 필요" : "iPhone hotspot may need password"
+        }
+
+        return language == .korean ? "Keychain 저장됨" : "Saved in Keychain"
     }
 
     var statusIndicatorSymbolName: String {
@@ -667,6 +865,7 @@ final class AppState: ObservableObject {
         }
         assertionController.release()
         powerSourceMonitor.stop()
+        networkRecoveryController.stop()
         if let cliCommandObserver {
             DistributedNotificationCenter.default().removeObserver(cliCommandObserver)
         }
@@ -720,6 +919,7 @@ final class AppState: ObservableObject {
         assertionController.release()
         assertionState = .stopped
         writeCLIStatus()
+        refreshNetworkRecovery()
     }
 
     func showAbout() {
@@ -894,6 +1094,118 @@ final class AppState: ObservableObject {
         autoPauseOnLowBattery = true
     }
 
+    func selectNetworkRecoveryRetrySeconds(_ seconds: Int) {
+        networkRecoveryRetrySecondsText = String(min(600, max(1, seconds)))
+    }
+
+    func normalizeNetworkRecoveryRetrySecondsText() {
+        selectNetworkRecoveryRetrySeconds(networkRecoveryRetrySeconds)
+    }
+
+    func selectNetworkRecoverySSID(_ ssid: String) {
+        let trimmedSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+        networkRecoverySSIDText = trimmedSSID
+    }
+
+    func refreshNetworkRecoverySSIDCandidatesIfNeeded() {
+        guard networkRecoveryNearbySSIDs.isEmpty, networkRecoverySavedSSIDs.isEmpty else {
+            return
+        }
+
+        refreshNetworkRecoverySSIDCandidates()
+    }
+
+    func refreshNetworkRecoverySSIDCandidates() {
+        guard !isNetworkRecoverySSIDRefreshInProgress else {
+            return
+        }
+
+        isNetworkRecoverySSIDRefreshInProgress = true
+        Task { [weak self] in
+            let result = await NetworkRecoveryConnector.wirelessNetworkCandidates()
+
+            guard let self else {
+                return
+            }
+
+            switch result {
+            case .success(let candidates):
+                self.networkRecoveryNearbySSIDs = candidates.nearby
+                self.networkRecoverySavedSSIDs = candidates.saved
+                self.networkRecoverySSIDRefreshError = nil
+                self.appendDebugEvent(
+                    title: "Network",
+                    detail: "Loaded \(candidates.nearby.count) nearby and \(candidates.saved.count) saved Wi-Fi network candidates",
+                    succeeded: true
+                )
+            case .failed(let message):
+                self.networkRecoveryNearbySSIDs = []
+                self.networkRecoverySavedSSIDs = []
+                self.networkRecoverySSIDRefreshError = message
+                self.appendDebugEvent(
+                    title: "Network",
+                    detail: "Load Wi-Fi networks failed: \(message)",
+                    succeeded: false
+                )
+            }
+
+            self.isNetworkRecoverySSIDRefreshInProgress = false
+        }
+    }
+
+    func testNetworkRecoveryConnection() {
+        let ssid = networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !ssid.isEmpty else {
+            networkRecoveryTestMessage = language == .korean ? "핫스팟 선택 필요" : "Choose hotspot first"
+            networkRecoveryStatus = .waitingForSSID
+            return
+        }
+
+        isNetworkRecoveryTestInProgress = true
+        networkRecoveryTestMessage = nil
+        networkRecoveryStatus = .connecting
+        appendDebugEvent(title: "Network", detail: "Testing hotspot connection to \"\(ssid)\"", succeeded: true)
+
+        Task { [weak self] in
+            let report = await NetworkRecoveryConnector.connectWithDiagnostics(
+                toSSID: ssid,
+                password: self?.networkRecoveryPasswordText ?? ""
+            )
+
+            guard let self else {
+                return
+            }
+
+            for event in report.events {
+                self.appendDebugEvent(title: "Network", detail: event.detail, succeeded: event.succeeded)
+            }
+
+            self.isNetworkRecoveryTestInProgress = false
+            switch report.result {
+            case .success:
+                self.networkRecoveryStatus = .connected(ssid)
+                self.networkRecoveryTestMessage = self.language == .korean ? "연결 성공" : "Connected"
+                self.appendDebugEvent(title: "Network", detail: "Hotspot test connected to \"\(ssid)\"", succeeded: true)
+            case .wifiDeviceUnavailable:
+                self.networkRecoveryStatus = .unavailable("Wi-Fi device not found")
+                self.networkRecoveryTestMessage = self.language == .korean ? "Wi-Fi를 찾지 못함" : "Wi-Fi unavailable"
+                self.appendDebugEvent(title: "Network", detail: "Hotspot test failed: Wi-Fi device not found", succeeded: false)
+            case .failed(let message):
+                self.networkRecoveryStatus = .failed(message)
+                self.networkRecoveryTestMessage = self.networkRecoveryConnectionFailureTitle(from: message)
+                self.appendDebugEvent(title: "Network", detail: "Hotspot test failed: \(message)", succeeded: false)
+            }
+        }
+    }
+
+    private func networkRecoveryConnectionFailureTitle(from message: String) -> String {
+        if message.contains("Wi-Fi is still connected") || message.contains("Wi-Fi did not join") {
+            return language == .korean ? "실제 연결 안 됨" : "Not connected"
+        }
+
+        return language == .korean ? "연결 실패" : "Connection failed"
+    }
+
     func showLowBatteryLimitPrompt() {
         let alert = NSAlert()
         alert.messageText = lowBatteryPromptTitle
@@ -972,46 +1284,63 @@ final class AppState: ObservableObject {
         startSession(duration: minutes * 60)
     }
 
-    private func refreshAssertion() {
+    private func refreshAssertion(forceClamshellReapply: Bool = false) {
         expireSessionIfNeeded()
         let previousState = assertionState
 
         guard isSleepPreventionEnabled else {
             assertionController.release()
-            updateAssertionState(.stopped, previousState: previousState)
+            updateAssertionState(.stopped, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             writeCLIStatus()
+            refreshNetworkRecovery()
             return
         }
 
         switch powerSourceState {
         case .acPower:
-            updateAssertionState(assertionController.acquire(), previousState: previousState)
+            updateAssertionState(assertionController.acquire(), previousState: previousState, forceClamshellReapply: forceClamshellReapply)
         case .battery:
             if allowOnBattery {
                 if autoPauseOnLowBattery, let batteryPercentage, batteryPercentage <= lowBatteryLimit {
                     assertionController.release()
-                    updateAssertionState(.batteryBlocked, previousState: previousState)
+                    updateAssertionState(.batteryBlocked, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
                     writeCLIStatus()
+                    refreshNetworkRecovery()
                     return
                 }
-                updateAssertionState(assertionController.acquire(), previousState: previousState)
+                updateAssertionState(assertionController.acquire(), previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             } else {
                 assertionController.release()
-                updateAssertionState(.batteryBlocked, previousState: previousState)
+                updateAssertionState(.batteryBlocked, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             }
         case .unknown:
             if allowOnBattery {
-                updateAssertionState(assertionController.acquire(), previousState: previousState)
+                updateAssertionState(assertionController.acquire(), previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             } else {
                 assertionController.release()
-                updateAssertionState(.acPowerOnly, previousState: previousState)
+                updateAssertionState(.acPowerOnly, previousState: previousState, forceClamshellReapply: forceClamshellReapply)
             }
         }
 
         writeCLIStatus()
+        refreshNetworkRecovery()
     }
 
-    private func updateAssertionState(_ newState: PowerAssertionState, previousState: PowerAssertionState) {
+    private func refreshNetworkRecovery() {
+        networkRecoveryController.update(configuration: NetworkRecoveryConfiguration(
+            isEnabled: networkRecoveryEnabled,
+            hotspotSSID: networkRecoverySSIDText,
+            hotspotPassword: networkRecoveryPasswordText,
+            retryDelay: TimeInterval(networkRecoveryRetrySeconds),
+            shouldMonitor: assertionState == .active
+        ))
+    }
+
+    private func updateAssertionState(
+        _ newState: PowerAssertionState,
+        previousState: PowerAssertionState,
+        forceClamshellReapply: Bool = false
+    ) {
         assertionState = newState
 
         if previousState != .active, newState == .active {
@@ -1036,7 +1365,7 @@ final class AppState: ObservableObject {
             )
         }
 
-        updateClamshellSleepState(for: newState)
+        updateClamshellSleepState(for: newState, force: forceClamshellReapply)
         updateDisplayBrightnessForClosedLid(for: newState)
 
         guard isSleepPreventionEnabled, previousState == .active, newState != .active else {
@@ -1277,9 +1606,9 @@ final class AppState: ObservableObject {
             .appendingPathComponent("Library/Application Support/LidStay/debug.log")
     }
 
-    private func updateClamshellSleepState(for state: PowerAssertionState) {
+    private func updateClamshellSleepState(for state: PowerAssertionState, force: Bool = false) {
         let shouldDisableClamshellSleep = state == .active
-        guard let result = assertionController.setClamshellSleepDisabled(shouldDisableClamshellSleep) else {
+        guard let result = assertionController.setClamshellSleepDisabled(shouldDisableClamshellSleep, force: force) else {
             return
         }
 
@@ -1321,6 +1650,59 @@ final class AppState: ObservableObject {
 
     private static func appleScriptQuoted(_ value: String) -> String {
         "\"\(value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
+    }
+
+    private static func keychainPassword(for ssid: String) -> String {
+        let account = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !account.isEmpty else {
+            return ""
+        }
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching([
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainNetworkRecoveryPasswordService,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ] as CFDictionary, &item)
+
+        guard status == errSecSuccess,
+              let data = item as? Data,
+              let password = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+
+        return password
+    }
+
+    private static func setKeychainPassword(_ password: String, for ssid: String) {
+        let account = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !account.isEmpty else {
+            return
+        }
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainNetworkRecoveryPasswordService,
+            kSecAttrAccount as String: account
+        ]
+
+        guard !password.isEmpty else {
+            SecItemDelete(query as CFDictionary)
+            return
+        }
+
+        let data = Data(password.utf8)
+        let updateStatus = SecItemUpdate(query as CFDictionary, [
+            kSecValueData as String: data
+        ] as CFDictionary)
+
+        if updateStatus == errSecItemNotFound {
+            var attributes = query
+            attributes[kSecValueData as String] = data
+            SecItemAdd(attributes as CFDictionary, nil)
+        }
     }
 
     private func openGitHubIssue(title: String, labels: String, body: String) {
@@ -1464,6 +1846,8 @@ private final class AppNotificationController: NSObject, UNUserNotificationCente
     }
 }
 
+private let keychainNetworkRecoveryPasswordService = "com.ghkdqhrbals.LidStay.networkRecoveryPassword"
+
 private enum DefaultsKey {
     static let isSleepPreventionEnabled = "isKeepAwakeEnabled"
     static let allowOnBattery = "allowOnBattery"
@@ -1474,6 +1858,9 @@ private enum DefaultsKey {
     static let autoPauseOnLowBattery = "autoPauseOnLowBattery"
     static let lowBatteryLimitText = "lowBatteryLimitText"
     static let startScreenSaverOnClosedLid = "startScreenSaverOnClosedLid"
+    static let networkRecoveryEnabled = "networkRecoveryEnabled"
+    static let networkRecoverySSIDText = "networkRecoverySSIDText"
+    static let networkRecoveryRetrySecondsText = "networkRecoveryRetrySecondsText"
     static let developerModeEnabled = "developerModeEnabled"
 }
 

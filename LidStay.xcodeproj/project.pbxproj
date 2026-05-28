@@ -14,6 +14,7 @@
 		8A1C3C802C6A4A11008B1010 /* PowerAssertionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */; };
 		8A2D10052C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */; };
 		8A1C3C812C6A4A11008B1010 /* PowerSourceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */; };
+		8A3B20022C8A0001008B1010 /* NetworkRecoveryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3B20012C8A0001008B1010 /* NetworkRecoveryController.swift */; };
 		8A1C3C912C6A4A12008B1010 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C8E2C6A4A12008B1010 /* AboutView.swift */; };
 		8A1C3C922C6A4A12008B1010 /* AboutWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C3C8F2C6A4A12008B1010 /* AboutWindowController.swift */; };
 		8A1C3C932C6A4A12008B1010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8A1C3C902C6A4A12008B1010 /* Assets.xcassets */; };
@@ -26,6 +27,8 @@
 		8A1C3CAD2C6A4A16008B1010 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 8A1C3CAC2C6A4A16008B1010 /* Sparkle */; };
 		8A2D10062C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */; };
 		8A2D10072C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D10032C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift */; };
+		8A3B20032C8A0001008B1010 /* NetworkRecoveryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3B20012C8A0001008B1010 /* NetworkRecoveryController.swift */; };
+		8A3B20042C8A0001008B1010 /* NetworkRecoveryControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3B20052C8A0001008B1010 /* NetworkRecoveryControllerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +40,7 @@
 		8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerAssertionController.swift; sourceTree = "<group>"; };
 		8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClosedLidBrightnessController.swift; sourceTree = "<group>"; };
 		8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerSourceMonitor.swift; sourceTree = "<group>"; };
+		8A3B20012C8A0001008B1010 /* NetworkRecoveryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRecoveryController.swift; sourceTree = "<group>"; };
 		8A1C3C8E2C6A4A12008B1010 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		8A1C3C8F2C6A4A12008B1010 /* AboutWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindowController.swift; sourceTree = "<group>"; };
 		8A1C3C902C6A4A12008B1010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -49,6 +53,7 @@
 		8A1C3CAE2C6A4A16008B1010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A2D10022C7F0001008B1010 /* LidStayTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LidStayTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A2D10032C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClosedLidBrightnessControllerTests.swift; sourceTree = "<group>"; };
+		8A3B20052C8A0001008B1010 /* NetworkRecoveryControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRecoveryControllerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -102,6 +107,7 @@
 				8A1C3C792C6A4A11008B1010 /* PowerAssertionController.swift */,
 				8A2D10012C7F0001008B1010 /* ClosedLidBrightnessController.swift */,
 				8A1C3C7A2C6A4A11008B1010 /* PowerSourceMonitor.swift */,
+				8A3B20012C8A0001008B1010 /* NetworkRecoveryController.swift */,
 				8A1C3CA22C6A4A14008B1010 /* CLICommand.swift */,
 				8A1C3CA42C6A4A15008B1010 /* CLIInstaller.swift */,
 				8A1C3CA92C6A4A16008B1010 /* UpdateController.swift */,
@@ -127,6 +133,7 @@
 			isa = PBXGroup;
 			children = (
 				8A2D10032C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift */,
+				8A3B20052C8A0001008B1010 /* NetworkRecoveryControllerTests.swift */,
 			);
 			path = LidStayTests;
 			sourceTree = "<group>";
@@ -244,6 +251,7 @@
 				8A1C3C802C6A4A11008B1010 /* PowerAssertionController.swift in Sources */,
 				8A2D10052C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */,
 				8A1C3C812C6A4A11008B1010 /* PowerSourceMonitor.swift in Sources */,
+				8A3B20022C8A0001008B1010 /* NetworkRecoveryController.swift in Sources */,
 				8A1C3C912C6A4A12008B1010 /* AboutView.swift in Sources */,
 				8A1C3C922C6A4A12008B1010 /* AboutWindowController.swift in Sources */,
 				8A1C3CA32C6A4A14008B1010 /* CLICommand.swift in Sources */,
@@ -260,6 +268,8 @@
 			files = (
 				8A2D10062C7F0001008B1010 /* ClosedLidBrightnessController.swift in Sources */,
 				8A2D10072C7F0001008B1010 /* ClosedLidBrightnessControllerTests.swift in Sources */,
+				8A3B20032C8A0001008B1010 /* NetworkRecoveryController.swift in Sources */,
+				8A3B20042C8A0001008B1010 /* NetworkRecoveryControllerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -391,7 +401,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 4CL25TC734;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -401,7 +411,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ghkdqhrbals.LidStay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SPARKLE_FEED_URL = "https://github.com/ghkdqhrbals/LidStay/releases/latest/download/appcast.xml";
@@ -417,7 +427,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 4CL25TC734;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -427,7 +437,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ghkdqhrbals.LidStay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SPARKLE_FEED_URL = "https://github.com/ghkdqhrbals/LidStay/releases/latest/download/appcast.xml";

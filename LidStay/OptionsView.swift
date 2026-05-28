@@ -74,6 +74,80 @@ struct OptionsView: View {
                     }
                 }
 
+                optionRow(title: isKorean ? "핫스팟" : "Hotspot", topic: .networkRecovery) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 10) {
+                            Toggle("", isOn: $appState.networkRecoveryEnabled)
+                                .labelsHidden()
+                            Picker("", selection: networkRecoverySSIDBinding) {
+                                Text(isKorean ? "선택" : "Choose")
+                                    .tag("")
+                                if let selectedSSID = appState.networkRecoverySelectedSSIDFallbackOption {
+                                    Text(selectedSSID).tag(selectedSSID)
+                                }
+                                if !appState.networkRecoveryNearbySSIDOptions.isEmpty {
+                                    Section(isKorean ? "근처 네트워크" : "Nearby") {
+                                        ForEach(appState.networkRecoveryNearbySSIDOptions, id: \.self) { ssid in
+                                            Text(ssid).tag(ssid)
+                                        }
+                                    }
+                                }
+                                if !appState.networkRecoverySavedSSIDOptions.isEmpty {
+                                    Section(isKorean ? "저장된 네트워크" : "Saved") {
+                                        ForEach(appState.networkRecoverySavedSSIDOptions, id: \.self) { ssid in
+                                            Text(ssid).tag(ssid)
+                                        }
+                                    }
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .frame(width: 170)
+                            .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
+                            Button {
+                                appState.refreshNetworkRecoverySSIDCandidates()
+                            } label: {
+                                Image(systemName: appState.isNetworkRecoverySSIDRefreshInProgress ? "hourglass" : "arrow.clockwise")
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(appState.isNetworkRecoverySSIDRefreshInProgress)
+                            .help(isKorean ? "근처 Wi-Fi 목록 다시 확인" : "Refresh nearby Wi-Fi networks")
+                            TextField("30", text: $appState.networkRecoveryRetrySecondsText)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.body.monospacedDigit())
+                                .frame(width: 50)
+                                .onSubmit {
+                                    appState.normalizeNetworkRecoveryRetrySecondsText()
+                                }
+                                .disabled(!appState.networkRecoveryEnabled)
+                            Text(isKorean ? "초" : "sec")
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .disabled(!appState.networkRecoveryEnabled)
+                        }
+
+                        HStack(spacing: 8) {
+                            SecureField(isKorean ? "핫스팟 암호" : "Hotspot password", text: $appState.networkRecoveryPasswordText)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 170)
+                                .disabled(appState.networkRecoverySSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            HStack(spacing: 4) {
+                                if appState.isNetworkRecoveryValidationErrorVisible {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundStyle(.red)
+                                        .imageScale(.small)
+                                }
+                                Text(appState.networkRecoveryPickerStatusTitle)
+                                    .foregroundStyle(appState.isNetworkRecoveryValidationErrorVisible ? Color.red : Color.secondary)
+                                    .lineLimit(1)
+                            }
+                            Text(appState.networkRecoveryPasswordStatusTitle)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+
                 Divider()
 
                 optionRow(title: isKorean ? "자동 실행" : "Launch") {
@@ -167,6 +241,18 @@ struct OptionsView: View {
                 }
 
                 if appState.developerModeEnabled {
+                    optionRow(title: isKorean ? "핫스팟 테스트" : "Hotspot Test") {
+                        HStack(spacing: 10) {
+                            Button(appState.networkRecoveryTestButtonTitle) {
+                                appState.testNetworkRecoveryConnection()
+                            }
+                            .disabled(!appState.canTestNetworkRecoveryConnection)
+                            Text(appState.networkRecoveryTestStatusTitle)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+
                     optionRow(title: isKorean ? "디버그" : "Debug") {
                         debugLogView
                     }
@@ -201,6 +287,9 @@ struct OptionsView: View {
         }
         .padding(22)
         .frame(width: 620, height: optionsWindowHeight)
+        .onAppear {
+            appState.refreshNetworkRecoverySSIDCandidates()
+        }
         .popover(item: $helpTopic) { topic in
             VStack(alignment: .leading, spacing: 8) {
                 Text(topic.title(isKorean: isKorean))
@@ -293,8 +382,19 @@ struct OptionsView: View {
         )
     }
 
+    private var networkRecoverySSIDBinding: Binding<String> {
+        Binding(
+            get: {
+                appState.networkRecoverySSIDText
+            },
+            set: { ssid in
+                appState.selectNetworkRecoverySSID(ssid)
+            }
+        )
+    }
+
     private var optionsWindowHeight: CGFloat {
-        appState.developerModeEnabled ? 720 : 610
+        appState.developerModeEnabled ? 790 : 650
     }
 
     private var debugLogView: some View {
@@ -356,6 +456,7 @@ private enum HelpTopic: Identifiable {
     case notifications
     case updates
     case automaticUpdates
+    case networkRecovery
     case language
     case about
     case uninstall
@@ -378,6 +479,8 @@ private enum HelpTopic: Identifiable {
             return isKorean ? "업데이트" : "Updates"
         case .automaticUpdates:
             return isKorean ? "자동 업데이트" : "Automatic updates"
+        case .networkRecovery:
+            return isKorean ? "핫스팟 자동 연결" : "Auto-connect hotspot"
         case .language:
             return isKorean ? "언어" : "Language"
         case .about:
@@ -417,6 +520,10 @@ private enum HelpTopic: Identifiable {
             return isKorean
                 ? "켜두면 새 버전을 자동으로 확인하고 가능한 경우 자동으로 설치합니다. 권한이 필요하면 macOS가 확인을 요청할 수 있습니다."
                 : "When enabled, LidStay checks for updates and installs them automatically when possible. macOS may still ask when authorization is required."
+        case .networkRecovery:
+            return isKorean
+                ? "Mac 켜두는 중 네트워크가 끊기면, 저장된 Wi-Fi 목록에서 선택한 핫스팟으로 자동 연결을 시도합니다."
+                : "When the network drops while LidStay is keeping your Mac on, it tries to join the hotspot selected from saved Wi-Fi networks."
         case .language:
             return isKorean
                 ? "메뉴와 옵션 창의 표시 언어를 바꿉니다."
