@@ -214,9 +214,24 @@ final class AppState: ObservableObject {
 
         powerSourceMonitor.onChange = { [weak self] snapshot in
             Task { @MainActor in
-                self?.powerSourceState = snapshot.state
-                self?.batteryPercentage = snapshot.batteryPercentage
-                self?.refreshAssertion(forceClamshellReapply: true)
+                guard let self else {
+                    return
+                }
+
+                let previousState = self.powerSourceState
+                self.powerSourceState = snapshot.state
+                self.batteryPercentage = snapshot.batteryPercentage
+                self.appendDebugEvent(
+                    title: "Power",
+                    detail: "Power source changed \(Self.powerSourceDescription(previousState)) -> \(Self.powerSourceDescription(snapshot.state)), battery=\(snapshot.batteryPercentage.map { "\($0)%" } ?? "unknown")",
+                    succeeded: true
+                )
+                self.refreshAssertion(forceClamshellReapply: true)
+                if previousState != .battery, snapshot.state == .battery {
+                    self.networkRecoveryController.handleBatteryPowerTransition()
+                } else if snapshot.state != .battery {
+                    self.networkRecoveryController.cancelBatteryPowerTransitionChecks()
+                }
             }
         }
         powerSourceMonitor.start()
@@ -316,8 +331,8 @@ final class AppState: ObservableObject {
             return language == .korean ? "핫스팟 연결 중" : "Connecting"
         case .connected(let ssid):
             return language == .korean ? "\(ssid)에 연결됨" : "Connected to \(ssid)"
-        case .failed:
-            return language == .korean ? "연결 실패, 재시도 중" : "Failed, retrying"
+        case .failed(let message):
+            return networkRecoveryConnectionFailureTitle(from: message)
         case .unavailable:
             return language == .korean ? "Wi-Fi를 찾지 못함" : "Wi-Fi unavailable"
         }
@@ -1199,6 +1214,10 @@ final class AppState: ObservableObject {
     }
 
     private func networkRecoveryConnectionFailureTitle(from message: String) -> String {
+        if message == NetworkRecoveryConnector.wifiPoweredOffMessage() {
+            return language == .korean ? "Wi-Fi 꺼짐" : "Wi-Fi off"
+        }
+
         if message.contains("Wi-Fi is still connected") || message.contains("Wi-Fi did not join") {
             return language == .korean ? "실제 연결 안 됨" : "Not connected"
         }
@@ -1334,6 +1353,17 @@ final class AppState: ObservableObject {
             retryDelay: TimeInterval(networkRecoveryRetrySeconds),
             shouldMonitor: assertionState == .active
         ))
+    }
+
+    private static func powerSourceDescription(_ state: PowerSourceState) -> String {
+        switch state {
+        case .acPower:
+            return "ac"
+        case .battery:
+            return "battery"
+        case .unknown:
+            return "unknown"
+        }
     }
 
     private func updateAssertionState(
@@ -1892,6 +1922,10 @@ struct DebugEvent: Identifiable, Equatable {
 
     var timeText: String {
         Self.timeFormatter.string(from: date)
+    }
+
+    var terminalLine: String {
+        "[\(timeText)] [\(succeeded ? "OK " : "ERR")] [\(title)] \(detail)"
     }
 
     private static let timeFormatter: DateFormatter = {

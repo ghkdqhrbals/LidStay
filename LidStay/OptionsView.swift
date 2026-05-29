@@ -404,29 +404,28 @@ struct OptionsView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 6) {
-                        ForEach(Array(appState.debugEvents.prefix(8))) { event in
-                            HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: event.succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundStyle(event.succeeded ? Color.green : Color.red)
-                                    .imageScale(.small)
-                                    .frame(width: 16)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("\(event.timeText) \(event.title)")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                    Text(event.detail)
-                                        .font(.caption.monospaced())
-                                        .lineLimit(2)
-                                        .textSelection(.enabled)
-                                }
-                            }
+                ScrollView([.vertical, .horizontal]) {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(appState.debugEvents.prefix(28))) { event in
+                            Text(event.terminalLine)
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundStyle(event.succeeded ? Color(red: 0.72, green: 0.95, blue: 0.74) : Color(red: 1.0, green: 0.58, blue: 0.54))
+                                .lineLimit(1)
+                                .textSelection(.enabled)
                         }
                     }
+                    .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(height: 118)
+                .frame(height: 170)
+                .background {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.black.opacity(0.82))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(Color.white.opacity(0.12))
+                        }
+                }
             }
 
             HStack(spacing: 10) {

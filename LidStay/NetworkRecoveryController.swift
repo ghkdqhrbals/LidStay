@@ -50,10 +50,15 @@ final class NetworkRecoveryController {
     private var status: NetworkRecoveryStatus = .off
     private var retryTask: Task<Void, Never>?
     private var connectionTask: Task<Void, Never>?
+    private var batteryTransitionTask: Task<Void, Never>?
+    private var recoveryWatchdogTask: Task<Void, Never>?
     private var pendingRetrySSID: String?
     private var pendingRetryDelay: Int?
     private var lastPathSummary: String?
     private var lastRecoverySummary: String?
+    private var previousAssociatedSSID: String?
+    private var hotspotSwitchGraceUntil: Date?
+    private let hotspotSwitchGraceInterval: TimeInterval = 12
 
     func update(configuration newConfiguration: NetworkRecoveryConfiguration) {
         let previousConfiguration = configuration
@@ -67,12 +72,50 @@ final class NetworkRecoveryController {
 
     func stop() {
         cancelPendingWork()
+        cancelBatteryPowerTransitionChecks()
+        stopRecoveryWatchdog()
         monitor?.cancel()
         monitor = nil
         lastPath = nil
         lastPathSummary = nil
         lastRecoverySummary = nil
+        previousAssociatedSSID = nil
+        hotspotSwitchGraceUntil = nil
         setStatus(.off)
+    }
+
+    func handleBatteryPowerTransition() {
+        guard configuration.isEnabled, configuration.shouldMonitor else {
+            return
+        }
+
+        guard !configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            setStatus(.waitingForSSID)
+            return
+        }
+
+        onEvent?(NetworkRecoveryEvent(detail: "Power changed to battery; checking hotspot recovery", succeeded: true))
+        runBatteryPowerTransitionCheck(label: "immediate")
+
+        batteryTransitionTask?.cancel()
+        batteryTransitionTask = Task { [weak self] in
+            for delay in [4, 12] {
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
+                } catch {
+                    return
+                }
+
+                await MainActor.run {
+                    self?.runBatteryPowerTransitionCheck(label: "after \(delay)s")
+                }
+            }
+        }
+    }
+
+    func cancelBatteryPowerTransitionChecks() {
+        batteryTransitionTask?.cancel()
+        batteryTransitionTask = nil
     }
 
     private func reconcileConfigurationChange(from previousConfiguration: NetworkRecoveryConfiguration) {
@@ -85,15 +128,19 @@ final class NetworkRecoveryController {
 
         guard !configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             cancelPendingWork()
+            stopRecoveryWatchdog()
             setStatus(.waitingForSSID)
             return
         }
 
         guard configuration.shouldMonitor else {
             cancelPendingWork()
+            stopRecoveryWatchdog()
             setStatus(.ready)
             return
         }
+
+        startRecoveryWatchdogIfNeeded()
 
         if hasConnectionCriticalChange(from: previousConfiguration) {
             cancelPendingWork()
@@ -133,19 +180,27 @@ final class NetworkRecoveryController {
 
         guard !configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             cancelPendingWork()
+            stopRecoveryWatchdog()
             setStatus(.waitingForSSID)
             return
         }
 
         guard configuration.shouldMonitor else {
             cancelPendingWork()
+            stopRecoveryWatchdog()
             setStatus(.ready)
             return
         }
 
-        switch currentHealth(for: path) {
+        startRecoveryWatchdogIfNeeded()
+
+        let currentSSID = NetworkRecoveryConnector.currentAssociatedWiFiSSID()
+        updateHotspotSwitchGrace(currentSSID: currentSSID)
+
+        switch currentHealth(for: path, currentSSID: currentSSID) {
         case .available:
             cancelPendingWork()
+            clearExpiredHotspotSwitchGrace()
             let wasMonitoring = status == .monitoring
             setStatus(.monitoring)
             if !wasMonitoring {
@@ -160,19 +215,127 @@ final class NetworkRecoveryController {
         }
     }
 
+    private func runBatteryPowerTransitionCheck(label: String) {
+        guard configuration.isEnabled, configuration.shouldMonitor else {
+            return
+        }
+
+        let targetSSID = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !targetSSID.isEmpty else {
+            setStatus(.waitingForSSID)
+            return
+        }
+
+        let currentSSID = NetworkRecoveryConnector.currentAssociatedWiFiSSID()
+        if NetworkRecoveryConnector.shouldSkipHotspotJoin(currentSSID: currentSSID, targetSSID: targetSSID) {
+            cancelPendingWork()
+            setStatus(.connected(targetSSID))
+            onEvent?(NetworkRecoveryEvent(detail: "Battery check \(label): already connected to hotspot \"\(targetSSID)\"", succeeded: true))
+            return
+        }
+
+        guard let lastPath else {
+            setStatus(.monitoring)
+            onEvent?(NetworkRecoveryEvent(detail: "Battery check \(label): waiting for network path before hotspot recovery", succeeded: true))
+            return
+        }
+
+        let shouldRecover = NetworkRecoveryConnector.shouldAttemptBatteryTransitionHotspotRecovery(
+            pathSatisfied: lastPath.status == .satisfied,
+            pathUsesWiFi: lastPath.usesInterfaceType(.wifi),
+            currentSSID: currentSSID,
+            targetSSID: targetSSID
+        )
+
+        guard shouldRecover else {
+            cancelPendingRetry()
+            let currentText = currentSSID.map { "current Wi-Fi \($0)" } ?? "network path"
+            onEvent?(NetworkRecoveryEvent(
+                detail: "Battery check \(label): \(currentText) is usable; hotspot recovery standing by",
+                succeeded: true
+            ))
+            return
+        }
+
+        onEvent?(NetworkRecoveryEvent(
+            detail: "Battery check \(label): network is not usable; scheduling hotspot \"\(targetSSID)\"",
+            succeeded: true
+        ))
+        scheduleConnectionAttempt()
+    }
+
+    private func runRecoveryWatchdogCheck() {
+        guard configuration.isEnabled, configuration.shouldMonitor else {
+            return
+        }
+
+        let targetSSID = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !targetSSID.isEmpty else {
+            setStatus(.waitingForSSID)
+            return
+        }
+
+        let currentSSID = NetworkRecoveryConnector.currentAssociatedWiFiSSID()
+        if NetworkRecoveryConnector.shouldSkipHotspotJoin(currentSSID: currentSSID, targetSSID: targetSSID) {
+            cancelPendingWork()
+            setStatus(.connected(targetSSID))
+            logRecoverySummaryIfNeeded("Watchdog: already connected to hotspot \"\(targetSSID)\"", succeeded: true)
+            return
+        }
+
+        guard let lastPath else {
+            logRecoverySummaryIfNeeded("Watchdog: waiting for network path before hotspot recovery", succeeded: true)
+            return
+        }
+
+        let shouldRecover = NetworkRecoveryConnector.shouldAttemptBatteryTransitionHotspotRecovery(
+            pathSatisfied: lastPath.status == .satisfied,
+            pathUsesWiFi: lastPath.usesInterfaceType(.wifi),
+            currentSSID: currentSSID,
+            targetSSID: targetSSID
+        )
+
+        guard shouldRecover else {
+            cancelPendingRetry()
+            let currentText = currentSSID.map { "current Wi-Fi \($0)" } ?? "network path"
+            logRecoverySummaryIfNeeded(
+                "Watchdog: \(currentText) is usable; hotspot recovery standing by",
+                succeeded: true
+            )
+            return
+        }
+
+        logRecoverySummaryIfNeeded(
+            "Watchdog: network is unavailable; scheduling hotspot \"\(targetSSID)\"",
+            succeeded: true
+        )
+        scheduleConnectionAttempt()
+    }
+
     private func scheduleConnectionAttempt() {
         guard status != .connecting else {
             return
         }
 
         let ssid = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
-        let delay = max(1, Int(configuration.retryDelay.rounded()))
+        let delay = NetworkRecoveryConnector.hotspotRecoveryDelaySeconds(
+            configuredDelay: configuration.retryDelay,
+            switchGraceUntil: hotspotSwitchGraceUntil,
+            now: Date()
+        )
         if pendingRetrySSID == ssid, pendingRetryDelay == delay, retryTask != nil {
             return
         }
 
         setStatus(.waitingToRetry(delay))
-        onEvent?(NetworkRecoveryEvent(detail: "Network unavailable; will try hotspot \"\(ssid)\" in \(delay)s", succeeded: true))
+        let isSwitchGraceActive = NetworkRecoveryConnector.hotspotSwitchGraceRemainingSeconds(
+            until: hotspotSwitchGraceUntil,
+            now: Date()
+        ) != nil
+        let detail = isSwitchGraceActive
+            ? "Wi-Fi is switching away from hotspot; will only retry \"\(ssid)\" if network stays down for \(delay)s"
+            : "Network unavailable; will try hotspot \"\(ssid)\" in \(delay)s"
+        onEvent?(NetworkRecoveryEvent(detail: detail, succeeded: true))
 
         retryTask?.cancel()
         pendingRetrySSID = ssid
@@ -210,7 +373,30 @@ final class NetworkRecoveryController {
             return
         }
 
-        switch currentHealth(for: lastPath) {
+        if let remainingSeconds = NetworkRecoveryConnector.hotspotSwitchGraceRemainingSeconds(
+            until: hotspotSwitchGraceUntil,
+            now: Date()
+        ) {
+            onEvent?(NetworkRecoveryEvent(
+                detail: "Skip hotspot connection while Wi-Fi switch is settling; retry in \(remainingSeconds)s if still offline",
+                succeeded: true
+            ))
+            scheduleConnectionAttempt()
+            return
+        }
+
+        let currentSSID = NetworkRecoveryConnector.currentAssociatedWiFiSSID()
+        guard NetworkRecoveryConnector.shouldStartHotspotConnection(
+            pathSatisfied: lastPath.status == .satisfied,
+            currentSSID: currentSSID,
+            targetSSID: configuredSSID
+        ) else {
+            setStatus(.monitoring)
+            onEvent?(NetworkRecoveryEvent(detail: "Skip hotspot connection because network is currently usable", succeeded: true))
+            return
+        }
+
+        switch currentHealth(for: lastPath, currentSSID: currentSSID) {
         case .available:
             setStatus(.monitoring)
             onEvent?(NetworkRecoveryEvent(detail: "Skip hotspot connection because network recovered before retry", succeeded: true))
@@ -233,6 +419,9 @@ final class NetworkRecoveryController {
                 toSSID: configuredSSID,
                 password: hotspotPassword
             )
+            guard !Task.isCancelled else {
+                return
+            }
             await MainActor.run {
                 self?.handleConnectionReport(report, ssid: configuredSSID)
             }
@@ -257,7 +446,13 @@ final class NetworkRecoveryController {
         case .failed(let message):
             setStatus(.failed(message))
             onEvent?(NetworkRecoveryEvent(detail: "Hotspot connection failed: \(message)", succeeded: false))
-            if let lastPath, currentHealth(for: lastPath) == .needsRecovery {
+            let currentSSID = NetworkRecoveryConnector.currentAssociatedWiFiSSID()
+            if let lastPath,
+               NetworkRecoveryConnector.shouldStartHotspotConnection(
+                   pathSatisfied: lastPath.status == .satisfied,
+                   currentSSID: currentSSID,
+                   targetSSID: ssid
+               ) {
                 scheduleConnectionAttempt()
             }
         }
@@ -274,6 +469,37 @@ final class NetworkRecoveryController {
         cancelPendingRetry()
         connectionTask?.cancel()
         connectionTask = nil
+    }
+
+    private func startRecoveryWatchdogIfNeeded() {
+        guard recoveryWatchdogTask == nil else {
+            return
+        }
+
+        recoveryWatchdogTask = Task { [weak self] in
+            while !Task.isCancelled {
+                let delay = await MainActor.run {
+                    NetworkRecoveryConnector.recoveryWatchdogIntervalSeconds(
+                        retryDelay: self?.configuration.retryDelay ?? 30
+                    )
+                }
+
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
+                } catch {
+                    return
+                }
+
+                await MainActor.run {
+                    self?.runRecoveryWatchdogCheck()
+                }
+            }
+        }
+    }
+
+    private func stopRecoveryWatchdog() {
+        recoveryWatchdogTask?.cancel()
+        recoveryWatchdogTask = nil
     }
 
     private func setStatus(_ newStatus: NetworkRecoveryStatus) {
@@ -295,15 +521,18 @@ final class NetworkRecoveryController {
         onEvent?(NetworkRecoveryEvent(detail: summary, succeeded: path.status == .satisfied))
     }
 
-    private func currentHealth(for path: NWPath) -> NetworkRecoveryHealth {
+    private func currentHealth(for path: NWPath, currentSSID: String?) -> NetworkRecoveryHealth {
         let targetSSID = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentSSID = NetworkRecoveryConnector.currentAssociatedWiFiSSID()
 
         if NetworkRecoveryConnector.shouldSkipHotspotJoin(currentSSID: currentSSID, targetSSID: targetSSID) {
             return .connectedToTarget(targetSSID)
         }
 
-        if path.status == .satisfied {
+        if NetworkRecoveryConnector.isNetworkPathAvailableForHotspotStandby(
+            pathSatisfied: path.status == .satisfied,
+            pathUsesWiFi: path.usesInterfaceType(.wifi),
+            currentSSID: currentSSID
+        ) {
             return .available
         }
 
@@ -325,6 +554,40 @@ final class NetworkRecoveryController {
 
         lastRecoverySummary = summary
         onEvent?(NetworkRecoveryEvent(detail: summary, succeeded: succeeded))
+    }
+
+    private func updateHotspotSwitchGrace(currentSSID: String?) {
+        let targetSSID = configuration.hotspotSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard NetworkRecoveryConnector.shouldStartHotspotSwitchGrace(
+            previousSSID: previousAssociatedSSID,
+            currentSSID: currentSSID,
+            targetSSID: targetSSID
+        ) else {
+            if let currentSSID, !currentSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                previousAssociatedSSID = currentSSID
+            } else if previousAssociatedSSID != nil {
+                previousAssociatedSSID = nil
+            }
+            return
+        }
+
+        hotspotSwitchGraceUntil = Date().addingTimeInterval(hotspotSwitchGraceInterval)
+        previousAssociatedSSID = currentSSID
+        let currentDescription = currentSSID.map { "\"\($0)\"" } ?? "not associated"
+        onEvent?(NetworkRecoveryEvent(
+            detail: "Detected Wi-Fi switch away from hotspot \"\(targetSSID)\" to \(currentDescription); delaying hotspot recovery",
+            succeeded: true
+        ))
+    }
+
+    private func clearExpiredHotspotSwitchGrace() {
+        guard let hotspotSwitchGraceUntil else {
+            return
+        }
+
+        if hotspotSwitchGraceUntil <= Date() {
+            self.hotspotSwitchGraceUntil = nil
+        }
     }
 
     private static func pathSummary(_ path: NWPath) -> String {
@@ -421,71 +684,65 @@ enum NetworkRecoveryConnector {
     }
 
     static func connectWithDiagnostics(toSSID ssid: String, password: String = "") async -> NetworkRecoveryAttemptReport {
-        await Task.detached(priority: .utility) {
-            var events: [NetworkRecoveryEvent] = []
+        var events: [NetworkRecoveryEvent] = []
 
-            func record(_ detail: String, succeeded: Bool = true) {
-                events.append(NetworkRecoveryEvent(detail: detail, succeeded: succeeded))
-            }
+        func record(_ detail: String, succeeded: Bool = true) {
+            events.append(NetworkRecoveryEvent(detail: detail, succeeded: succeeded))
+        }
 
-            func finish(_ result: NetworkRecoveryAttemptResult) -> NetworkRecoveryAttemptReport {
-                NetworkRecoveryAttemptReport(result: result, events: events)
-            }
+        func finish(_ result: NetworkRecoveryAttemptResult) -> NetworkRecoveryAttemptReport {
+            NetworkRecoveryAttemptReport(result: result, events: events)
+        }
 
-            let targetSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
-            let hasPassword = !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            record("Hotspot recovery started: target=\"\(targetSSID)\", password=\(hasPassword ? "set" : "not set")")
+        guard !Task.isCancelled else {
+            return finish(.failed(hotspotRecoveryCancelledMessage()))
+        }
 
-            guard case .success(let device) = wifiDevice() else {
-                record("Wi-Fi device lookup failed", succeeded: false)
-                return finish(.wifiDeviceUnavailable)
-            }
-            record("Wi-Fi device detected: \(device)")
+        let targetSSID = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasPassword = !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        record("Hotspot recovery started: target=\"\(targetSSID)\", password=\(hasPassword ? "set" : "not set")")
 
-            let currentSSIDBefore = currentWirelessNetworkName(device: device)
-            record("Current Wi-Fi before recovery: \(currentSSIDBefore.map { "\"\($0)\"" } ?? "not associated")")
-            if shouldSkipHotspotJoin(currentSSID: currentSSIDBefore, targetSSID: targetSSID) {
-                record("Already connected to hotspot \"\(targetSSID)\"; skipping Wi-Fi commands")
-                return finish(.success)
-            }
+        guard case .success(let device) = wifiDevice() else {
+            record("Wi-Fi device lookup failed", succeeded: false)
+            return finish(.wifiDeviceUnavailable)
+        }
+        record("Wi-Fi device detected: \(device)")
 
-            let serviceResult = ensureWiFiServiceEnabled(device: device, record: record)
-            if case .failed(let message) = serviceResult {
-                return finish(.failed(message))
-            }
+        let currentSSIDBefore = currentWirelessNetworkName(device: device)
+        record("Current Wi-Fi before recovery: \(currentSSIDBefore.map { "\"\($0)\"" } ?? "not associated")")
+        if shouldSkipHotspotJoin(currentSSID: currentSSIDBefore, targetSSID: targetSSID) {
+            record("Already connected to hotspot \"\(targetSSID)\"; skipping Wi-Fi commands")
+            return finish(.success)
+        }
 
-            let powerResult = ensureWiFiPowerOn(device: device, record: record)
-            if case .failed(let message) = powerResult {
-                return finish(.failed(message))
-            }
+        let powerResult = ensureWiFiPowerAvailable(record: record)
+        if case .failed(let message) = powerResult {
+            return finish(.failed(message))
+        }
 
-            let firstPass = await connectOnePass(
-                device: device,
-                targetSSID: targetSSID,
-                password: password,
-                label: "initial",
-                record: record
-            )
-            if firstPass.result == .success {
-                return finish(firstPass.result)
-            }
+        guard !Task.isCancelled else {
+            return finish(.failed(hotspotRecoveryCancelledMessage()))
+        }
 
-            if currentSSIDBefore == nil, firstPass.hotspotWasNotFound {
-                let refreshed = refreshWiFiRadio(device: device, record: record)
-                if refreshed {
-                    let secondPass = await connectOnePass(
-                        device: device,
-                        targetSSID: targetSSID,
-                        password: password,
-                        label: "after Wi-Fi refresh",
-                        record: record
-                    )
-                    return finish(secondPass.result)
-                }
-            }
-
+        let firstPass = await connectOnePass(
+            device: device,
+            targetSSID: targetSSID,
+            password: password,
+            label: "initial",
+            record: record
+        )
+        if firstPass.result == .success {
             return finish(firstPass.result)
-        }.value
+        }
+
+        if currentSSIDBefore == nil, firstPass.hotspotWasNotFound {
+            record(
+                "Hotspot was not found while Wi-Fi is disconnected; skipping Wi-Fi power refresh to avoid disrupting the current network",
+                succeeded: true
+            )
+        }
+
+        return finish(firstPass.result)
     }
 
     static func setAirportNetworkArguments(device: String, ssid: String, password: String) -> [String] {
@@ -495,10 +752,6 @@ enum NetworkRecoveryConnector {
             arguments.append(trimmedPassword)
         }
         return arguments
-    }
-
-    static func setAirportPowerArguments(device: String, isOn: Bool) -> [String] {
-        ["-setairportpower", device, isOn ? "on" : "off"]
     }
 
     static func redactedAirportNetworkCommand(device: String, ssid: String, password: String) -> String {
@@ -535,6 +788,87 @@ enum NetworkRecoveryConnector {
         !isNetworkReachable && !shouldSkipHotspotJoin(currentSSID: currentSSID, targetSSID: targetSSID)
     }
 
+    static func shouldStartHotspotConnection(
+        pathSatisfied: Bool,
+        currentSSID: String?,
+        targetSSID: String
+    ) -> Bool {
+        !pathSatisfied && !shouldSkipHotspotJoin(currentSSID: currentSSID, targetSSID: targetSSID)
+    }
+
+    static func shouldAttemptBatteryTransitionHotspotRecovery(
+        pathSatisfied: Bool,
+        pathUsesWiFi: Bool,
+        currentSSID: String?,
+        targetSSID: String
+    ) -> Bool {
+        if shouldSkipHotspotJoin(currentSSID: currentSSID, targetSSID: targetSSID) {
+            return false
+        }
+
+        if !pathSatisfied {
+            return true
+        }
+
+        return false
+    }
+
+    static func isNetworkPathAvailableForHotspotStandby(
+        pathSatisfied: Bool,
+        pathUsesWiFi: Bool,
+        currentSSID: String?
+    ) -> Bool {
+        guard pathSatisfied else {
+            return false
+        }
+
+        return true
+    }
+
+    static func recoveryWatchdogIntervalSeconds(retryDelay: TimeInterval) -> Int {
+        min(30, max(3, Int(retryDelay.rounded())))
+    }
+
+    static func shouldStartHotspotSwitchGrace(
+        previousSSID: String?,
+        currentSSID: String?,
+        targetSSID: String
+    ) -> Bool {
+        let normalizedTargetSSID = targetSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedTargetSSID.isEmpty,
+              previousSSID?.trimmingCharacters(in: .whitespacesAndNewlines) == normalizedTargetSSID else {
+            return false
+        }
+
+        return currentSSID?.trimmingCharacters(in: .whitespacesAndNewlines) != normalizedTargetSSID
+    }
+
+    static func hotspotRecoveryDelaySeconds(
+        configuredDelay: TimeInterval,
+        switchGraceUntil: Date?,
+        now: Date
+    ) -> Int {
+        let configuredSeconds = max(1, Int(configuredDelay.rounded()))
+        guard let remainingSeconds = hotspotSwitchGraceRemainingSeconds(until: switchGraceUntil, now: now) else {
+            return configuredSeconds
+        }
+
+        return max(configuredSeconds, remainingSeconds)
+    }
+
+    static func hotspotSwitchGraceRemainingSeconds(until switchGraceUntil: Date?, now: Date) -> Int? {
+        guard let switchGraceUntil else {
+            return nil
+        }
+
+        let remaining = switchGraceUntil.timeIntervalSince(now)
+        guard remaining > 0 else {
+            return nil
+        }
+
+        return max(1, Int(ceil(remaining)))
+    }
+
     static func shouldSkipHotspotJoin(currentSSID: String?, targetSSID: String) -> Bool {
         guard let currentSSID else {
             return false
@@ -557,37 +891,6 @@ enum NetworkRecoveryConnector {
         return currentWirelessNetworkName(device: device)
     }
 
-    static func networkServiceName(forDevice targetDevice: String, from output: String) -> String? {
-        var pendingServiceName: String?
-
-        for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
-            let line = String(rawLine).trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if line.hasPrefix("("), !line.contains("Hardware Port:") {
-                guard let closingParenthesis = line.firstIndex(of: ")") else {
-                    pendingServiceName = nil
-                    continue
-                }
-
-                pendingServiceName = String(line[line.index(after: closingParenthesis)...])
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .trimmingDisabledNetworkServiceMarker()
-                continue
-            }
-
-            guard line.hasPrefix("(Hardware Port:"),
-                  line.contains("Device: \(targetDevice)") else {
-                continue
-            }
-
-            if let pendingServiceName, !pendingServiceName.isEmpty {
-                return pendingServiceName
-            }
-        }
-
-        return nil
-    }
-
     static func connectionVerificationFailureMessage(
         targetSSID: String,
         currentSSID: String?,
@@ -602,6 +905,14 @@ enum NetworkRecoveryConnector {
 
     static func hotspotNotBroadcastingMessage(targetSSID: String) -> String {
         "hotspot \"\(targetSSID)\" is not broadcasting as a regular Wi-Fi network. Open Personal Hotspot on iPhone and keep Allow Others to Join enabled."
+    }
+
+    static func wifiPoweredOffMessage() -> String {
+        "Wi-Fi is off. Turn on Wi-Fi to use hotspot auto-connect."
+    }
+
+    static func hotspotRecoveryCancelledMessage() -> String {
+        "Hotspot recovery was cancelled because the network recovered."
     }
 
     static func wifiDeviceName(from output: String) -> String? {
@@ -713,15 +1024,6 @@ enum NetworkRecoveryConnector {
         return .success(device)
     }
 
-    private static func wifiNetworkServiceName(device: String) -> String? {
-        let result = runProcess(executablePath: "/usr/sbin/networksetup", arguments: ["-listnetworkserviceorder"])
-        guard result.exitCode == 0 else {
-            return nil
-        }
-
-        return networkServiceName(forDevice: device, from: result.stdout)
-    }
-
     private static func verifiedConnectionResult(
         device: String,
         targetSSID: String,
@@ -787,11 +1089,25 @@ enum NetworkRecoveryConnector {
         record: @escaping (String, Bool) -> Void
     ) async -> NetworkRecoveryAttemptPassReport {
         record("Hotspot connection pass: \(label)", true)
+        guard !Task.isCancelled else {
+            return NetworkRecoveryAttemptPassReport(
+                result: .failed(hotspotRecoveryCancelledMessage()),
+                hotspotWasNotFound: false
+            )
+        }
 
         let coreWLANResult = await connectUsingCoreWLAN(toSSID: targetSSID, password: password, record: record)
         if coreWLANResult == .success {
             let result = await verifiedConnectionResult(device: device, targetSSID: targetSSID, method: "CoreWLAN", record: record)
             return NetworkRecoveryAttemptPassReport(result: result, hotspotWasNotFound: false)
+        }
+
+        guard !Task.isCancelled else {
+            record("Hotspot connection cancelled before networksetup fallback", true)
+            return NetworkRecoveryAttemptPassReport(
+                result: .failed(hotspotRecoveryCancelledMessage()),
+                hotspotWasNotFound: false
+            )
         }
 
         record("Fallback command: \(redactedAirportNetworkCommand(device: device, ssid: targetSSID, password: password))", true)
@@ -881,6 +1197,10 @@ enum NetworkRecoveryConnector {
             try interface.associate(to: selectedNetwork, password: trimmedPassword.isEmpty ? nil : trimmedPassword)
             return .success
         } catch {
+            if error is CancellationError {
+                record?("CoreWLAN cancelled before joining hotspot", true)
+                return .failed(hotspotRecoveryCancelledMessage())
+            }
             record?("CoreWLAN failed: \(error.localizedDescription)", false)
             return .failed(error.localizedDescription)
         }
@@ -929,95 +1249,16 @@ enum NetworkRecoveryConnector {
         nearbyNetworkNames().names.contains(ssid)
     }
 
-    private static func ensureWiFiServiceEnabled(
-        device: String,
-        record: ((String, Bool) -> Void)? = nil
-    ) -> NetworkRecoveryAttemptResult {
-        guard let serviceName = wifiNetworkServiceName(device: device) else {
-            record?("Wi-Fi network service lookup failed for device \(device); continuing with airport power only", false)
-            return .success
-        }
-
-        record?("Wi-Fi network service detected: \"\(serviceName)\"", true)
-        let result = runProcess(
-            executablePath: "/usr/sbin/networksetup",
-            arguments: ["-setnetworkserviceenabled", serviceName, "on"]
-        )
-        record?(
-            "Wi-Fi network service enable exit=\(result.exitCode), stdout=\"\(conciseCommandOutput(result.stdout))\", stderr=\"\(conciseCommandOutput(result.stderr))\"",
-            result.exitCode == 0
-        )
-
-        guard result.exitCode == 0 else {
-            return .failed(commandFailureMessage(result))
-        }
-
-        Thread.sleep(forTimeInterval: 1)
-        return .success
-    }
-
-    private static func ensureWiFiPowerOn(
-        device: String,
+    private static func ensureWiFiPowerAvailable(
         record: ((String, Bool) -> Void)? = nil
     ) -> NetworkRecoveryAttemptResult {
         let powerOn = CWWiFiClient.shared().interface()?.powerOn()
         record?("Wi-Fi power state before recovery: \(powerOn.map { $0 ? "on" : "off" } ?? "unknown")", powerOn != false)
-        if powerOn == true {
-            return .success
+        if powerOn == false {
+            return .failed(wifiPoweredOffMessage())
         }
 
-        record?("Command: /usr/sbin/networksetup \(setAirportPowerArguments(device: device, isOn: true).joined(separator: " "))", true)
-        let result = runProcess(
-            executablePath: "/usr/sbin/networksetup",
-            arguments: setAirportPowerArguments(device: device, isOn: true)
-        )
-        record?(
-            "Wi-Fi power command exit=\(result.exitCode), stdout=\"\(conciseCommandOutput(result.stdout))\", stderr=\"\(conciseCommandOutput(result.stderr))\"",
-            result.exitCode == 0
-        )
-
-        guard result.exitCode == 0 else {
-            return .failed(commandFailureMessage(result))
-        }
-
-        Thread.sleep(forTimeInterval: 2)
         return .success
-    }
-
-    private static func refreshWiFiRadio(
-        device: String,
-        record: ((String, Bool) -> Void)? = nil
-    ) -> Bool {
-        record?("Hotspot was not found while Wi-Fi is disconnected; refreshing Wi-Fi radio once", true)
-
-        let powerOffResult = runProcess(
-            executablePath: "/usr/sbin/networksetup",
-            arguments: setAirportPowerArguments(device: device, isOn: false)
-        )
-        record?(
-            "Wi-Fi power off exit=\(powerOffResult.exitCode), stdout=\"\(conciseCommandOutput(powerOffResult.stdout))\", stderr=\"\(conciseCommandOutput(powerOffResult.stderr))\"",
-            powerOffResult.exitCode == 0
-        )
-        guard powerOffResult.exitCode == 0 else {
-            return false
-        }
-
-        Thread.sleep(forTimeInterval: 2)
-
-        let powerOnResult = runProcess(
-            executablePath: "/usr/sbin/networksetup",
-            arguments: setAirportPowerArguments(device: device, isOn: true)
-        )
-        record?(
-            "Wi-Fi power on exit=\(powerOnResult.exitCode), stdout=\"\(conciseCommandOutput(powerOnResult.stdout))\", stderr=\"\(conciseCommandOutput(powerOnResult.stderr))\"",
-            powerOnResult.exitCode == 0
-        )
-        guard powerOnResult.exitCode == 0 else {
-            return false
-        }
-
-        Thread.sleep(forTimeInterval: 4)
-        return true
     }
 
     private static func conciseCommandOutput(_ output: String) -> String {
@@ -1151,10 +1392,4 @@ private struct ProcessResult {
     let exitCode: Int32
     let stdout: String
     let stderr: String
-}
-
-private extension String {
-    func trimmingDisabledNetworkServiceMarker() -> String {
-        hasPrefix("*") ? String(dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines) : self
-    }
 }
